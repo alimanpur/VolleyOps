@@ -1,0 +1,100 @@
+@import 'tailwindcss';
+
+/*
+ * VolleyOps design system.
+ *
+ * Editorial / athletic sports-operations language: paper grounds, ink type,
+ * a single confident green for tournament state and score red for live/scoring.
+ * 1px rules over cards, tight 2–4px radii, tabular numerals for every score and
+ * stat. Barlow Condensed carries the display voice; Instrument Sans the UI.
+ *
+ * Tokens are exposed to Tailwind v4 via @theme so utilities like text-ink,
+ * bg-paper, border-rule are generated from the same source of truth.
+ */
+@theme {
+  --color-paper: #f6f3ec;
+  --color-surface: #fbf9f4;
+  --color-ink: #141414;
+  --color-graphite: #2a2b2a;
+  --color-muted: #6b6a64;
+  --color-rule: #d9d4c7;
+  --color-green: #0f6b3c;
+  --color-deepGreen: #0a4a2a;
+  --color-greenTint: #e4efe7;
+  --color-scoreRed: #c8321f;
+  --color-amber: #b7791f;
+
+  --font-display: 'Barlow Condensed', 'Arial Narrow', sans-serif;
+  --font-sans: 'Instrument Sans', system-ui, -apple-system, sans-serif;
+
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+
+  --tracking-display: -0.01em;
+}
+
+:root {
+  color-scheme: light;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Display type: condensed, tight, uppercase-friendly. */
+.font-display {
+  font-family: var(--font-display);
+  letter-spacing: var(--tracking-display);
+  line-height: 0.98;
+}
+
+/* Every score and statistic uses tabular figures so columns line up. */
+.tnum {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+
+/* Focus is always visible — accessibility is not sacrificed for aesthetics. */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-green);
+  outline-offset: 2px;
+  border-radius: var(--radius-xs);
+}
+
+/* A quiet, deliberate live pulse — no neon, no flashing. */
+@keyframes vops-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+.live-dot {
+  animation: vops-pulse 1.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live-dot { animation: none; }
+  * { scroll-behavior: auto !important; }
+}
+
+/* Thin scrollbars for the horizontal bracket on desktop. */
+.scroll-x {
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-rule) transparent;
+}
+.scroll-x::-webkit-scrollbar { height: 8px; }
+.scroll-x::-webkit-scrollbar-thumb { background: var(--color-rule); border-radius: 4px; }
+
+/* Hairline helper used across tables and blocks. */
+.rule-t { border-top: 1px solid var(--color-rule); }
+.rule-b { border-bottom: 1px solid var(--color-rule); }
