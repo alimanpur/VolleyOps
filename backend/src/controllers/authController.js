@@ -39,7 +39,7 @@ export const authController = {
       ? authService.scopeForRole(req.auth.role)
       : String(req.query?.scope || '').toLowerCase();
     if (authService.SCOPES.includes(scope)) {
-      res.clearCookie(authService.cookieNameForScope(scope), { path: '/' });
+      res.clearCookie(authService.cookieNameForScope(scope), authService.clearCookieOptions());
     }
     res.json({ ok: true });
   }),

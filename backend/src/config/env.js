@@ -15,7 +15,7 @@ function required(name, fallback) {
 export const env = {
   nodeEnv: process.env.NODE_ENV || 'development',
   port: Number(process.env.PORT || 4000),
-  mongoUri: required('MONGODB_URI', 'mongodb://127.0.0.1:27017/volleyops'),
+  mongoUri: required('MONGODB_URI'),
   sessionSecret: required('SESSION_SECRET'),
   sessionTtlHours: Number(process.env.SESSION_TTL_HOURS || 12),
   corsOrigins: (process.env.CORS_ORIGIN || 'http://localhost:5173')
