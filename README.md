@@ -1,4 +1,4 @@
-# VolleyOps
+﻿# VolleyOps
 
 Tournament management and live scoring for the **IPS Academy Volleyball Tournament** (21–22 September 2026, matches from 3:00 PM IST). One codebase, four purpose-built experiences: a public spectator site, a captain portal, a mobile scoring console, and an admin control center. MongoDB is the single source of truth — nothing about the tournament is hardcoded in the UI.
 
@@ -133,7 +133,7 @@ cd frontend && node scripts/verify-imports.mjs   # static relative-import path c
    - `MONGODB_URI` — your MongoDB Atlas connection string
    - `SESSION_SECRET` — a long random string
    - `SESSION_TTL_HOURS=12`
-   - `CORS_ORIGIN` — your Vercel frontend origin (e.g. `https://volleyops.vercel.app`)
+   - `CORS_ORIGIN` — your Vercel frontend origin(s), comma-separated. Example: `https://volley-ops.vercel.app,https://your-custom-domain.com`. Do NOT use `*` with credentialed requests.
    - `ADMIN_USERNAME` — your admin login username
    - `ADMIN_PASSWORD` — your admin login password
    - `TRUST_PROXY=true`
@@ -144,7 +144,7 @@ cd frontend && node scripts/verify-imports.mjs   # static relative-import path c
 
 1. Connect the `frontend/` directory to Vercel.
 2. Set the environment variable:
-   - `VITE_API_BASE_URL` — your Render backend URL (e.g. `https://volleyops-api.onrender.com`)
+   - `VITE_API_BASE_URL` — your Render backend URL (e.g. `https://volleyops.onrender.com`)
 3. Vercel automatically runs `npm run build` and serves `dist/`.
 4. SPA routing is configured via `vercel.json` so all routes serve `index.html`.
 
@@ -158,5 +158,3 @@ cd frontend && node scripts/verify-imports.mjs   # static relative-import path c
 - Verify the MongoDB Atlas IP whitelist allows Render's outbound IPs.
 - Confirm `npm test` passes and `npm run verify` succeeds before deploying.
 - Never commit `.env` to Git.
-#   V o l l e y O p s  
- 

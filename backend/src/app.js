@@ -16,7 +16,6 @@ export function createApp() {
   app.use(
     cors({
       origin(origin, cb) {
-        // Allow same-origin / tools with no origin, and configured origins.
         if (!origin || env.corsOrigins.includes(origin)) return cb(null, true);
         return cb(new Error('Not allowed by CORS'));
       },
@@ -25,6 +24,9 @@ export function createApp() {
   );
   app.use(express.json({ limit: '1mb' }));
   app.use(cookieParser());
+
+  console.log(`[config] CORS origins: ${JSON.stringify(env.corsOrigins)}`);
+  console.log(`[config] NODE_ENV=${env.nodeEnv}, trustProxy=${env.trustProxy}, sessionTtlHours=${env.sessionTtlHours}`);
 
   // Populate req.auth from the session cookie (no-op for public traffic).
   app.use(attachSession);
