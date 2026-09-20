@@ -1,21 +1,21 @@
 /**
- * Pure bracket-progression logic for a single-elimination tournament.
+ * Pure tournament structure logic for the IPS Academy 5-team league format.
  *
- * A match knows where its winner goes via { nextMatchId, nextSlot } where
- * nextSlot is 'A' or 'B'. A downstream match records which upstream match feeds
- * each of its slots via source = { A: { matchId }, B: { matchId } }. That lets
- * us both advance a winner forward and, on reopen, reverse it safely.
+ * LEAGUE STAGE: 5 matches, every team plays exactly twice.
+ * No team plays itself, no duplicate pairs, 3rd Year CSE 1 vs 3rd Year CSE 2
+ * does not meet in the league.
  *
- * BYEs are modelled honestly: a team seeded straight into a later match simply
- * occupies that match's slot from the start (source[slot] is null, teamId is
- * set). No placeholder "bye match" is ever created.
+ * After all league matches are completed, top 4 qualify for semifinals:
+ *   SF1: #1 vs #4
+ *   SF2: #2 vs #3
+ * Final: Winner SF1 vs Winner SF2
  *
  * These functions operate on plain match-like objects and return the *patches*
  * to apply, so the service layer stays in control of persistence and ordering.
  */
 
 export const STAGES = Object.freeze({
-  ROUND_1: 'ROUND_1',
+  LEAGUE: 'LEAGUE',
   SEMIFINAL: 'SEMIFINAL',
   FINAL: 'FINAL',
 });
@@ -39,10 +39,6 @@ export function slotsResolved(match) {
 /**
  * Compute the patch to apply to the downstream match when `match` finishes with
  * `winnerTeamId`. Returns null when the match feeds nowhere (e.g. the final).
- *
- * The patch sets the winning team into the recorded slot. Callers should refuse
- * to advance if that downstream slot is already occupied by a *different* team
- * that did not originate from this match (guards against double-advance).
  */
 export function advancePatch(match, winnerTeamId) {
   if (!match.nextMatchId || !match.nextSlot) return null;
@@ -55,15 +51,11 @@ export function advancePatch(match, winnerTeamId) {
 
 /**
  * Compute the patch to *reverse* an advancement when `match` is reopened.
- * Clears the downstream slot only if it is currently populated by the team that
- * came from this match — never touches a slot resolved by another source or a
- * BYE seed.
  */
 export function reopenPatch(match, downstreamMatch) {
   if (!match.nextMatchId || !match.nextSlot) return null;
   const slot = match.nextSlot;
   const source = downstreamMatch.source?.[slot];
-  // Only clear if this downstream slot is fed by this exact match.
   if (!source || String(source.matchId) !== String(match._id ?? match.id)) {
     return null;
   }
@@ -72,9 +64,6 @@ export function reopenPatch(match, downstreamMatch) {
 
 /**
  * Guard: is it safe to write `teamId` into `downstreamMatch[slot]`?
- * Safe when the slot is empty, or already holds this exact team (idempotent
- * re-advance). Unsafe when a different team occupies it — signals stale state
- * that must be reopened first.
  */
 export function canAdvanceInto(downstreamMatch, slot, teamId) {
   const key = slot === 'A' ? 'teamA' : 'teamB';
@@ -84,58 +73,151 @@ export function canAdvanceInto(downstreamMatch, slot, teamId) {
 }
 
 /**
- * The canonical VolleyOps bracket definition for the IPS Academy tournament.
- * Codes are stable, human-readable identifiers used to wire matches together
- * during seeding/setup. `seeds` places teams (by team code) directly into slots;
- * `feeds` wires a winner into a downstream slot.
+ * The canonical 5-match league fixture for the IPS Academy tournament.
+ * Every team plays exactly twice. The order is fixed by competition rules
+ * but can be reordered by Admin without changing the underlying rules.
  *
- * Layout:
- *   M01 Round 1: 1st Year CSE vs 1st Year AIML  -> winner to SF1 (M02) slot B
- *   M02 Semifinal 1: 3rd Year CSE 1 (seed A) vs winner M01 (slot B)
- *   M03 Semifinal 2: 3rd Year CSE 2 (seed A) vs 2nd Year (seed B)
- *   M04 Final: winner M02 (slot A) vs winner M03 (slot B)
- *
- * 3rd Year CSE 1, 3rd Year CSE 2 and 2nd Year receive effective BYEs by being
- * seeded straight into the semifinals — no fake first-round matches.
+ * M01: 3RD_CSE_2 vs 1ST_CSE
+ * M02: 1ST_AIML vs 3RD_CSE_1
+ * M03: 2ND_YEAR vs 1ST_CSE
+ * M04: 3RD_CSE_1 vs 2ND_YEAR
+ * M05: 3RD_CSE_2 vs 1ST_AIML
  */
-export function bracketBlueprint() {
+export function leagueBlueprint() {
   return {
     matches: [
       {
         code: 'M01',
-        stage: STAGES.ROUND_1,
-        label: 'Round 1',
+        stage: STAGES.LEAGUE,
+        label: 'League Match 1',
         order: 1,
-        seeds: { A: '1ST_CSE', B: '1ST_AIML' },
-        feeds: { winnerTo: { matchCode: 'M02', slot: 'B' } },
+        seeds: { A: '3RD_CSE_2', B: '1ST_CSE' },
       },
       {
         code: 'M02',
-        stage: STAGES.SEMIFINAL,
-        label: 'Semifinal 1',
+        stage: STAGES.LEAGUE,
+        label: 'League Match 2',
         order: 2,
-        seeds: { A: '3RD_CSE_1' }, // BYE straight into SF1
-        sources: { B: { matchCode: 'M01', label: 'Winner of Round 1' } },
-        feeds: { winnerTo: { matchCode: 'M04', slot: 'A' } },
+        seeds: { A: '1ST_AIML', B: '3RD_CSE_1' },
       },
       {
         code: 'M03',
-        stage: STAGES.SEMIFINAL,
-        label: 'Semifinal 2',
+        stage: STAGES.LEAGUE,
+        label: 'League Match 3',
         order: 3,
-        seeds: { A: '3RD_CSE_2', B: '2ND_YEAR' }, // both BYE into SF2
-        feeds: { winnerTo: { matchCode: 'M04', slot: 'B' } },
+        seeds: { A: '2ND_YEAR', B: '1ST_CSE' },
       },
       {
         code: 'M04',
-        stage: STAGES.FINAL,
-        label: 'Final',
+        stage: STAGES.LEAGUE,
+        label: 'League Match 4',
         order: 4,
-        sources: {
-          A: { matchCode: 'M02', label: 'Winner of Semifinal 1' },
-          B: { matchCode: 'M03', label: 'Winner of Semifinal 2' },
-        },
+        seeds: { A: '3RD_CSE_1', B: '2ND_YEAR' },
+      },
+      {
+        code: 'M05',
+        stage: STAGES.LEAGUE,
+        label: 'League Match 5',
+        order: 5,
+        seeds: { A: '3RD_CSE_2', B: '1ST_AIML' },
       },
     ],
   };
+}
+
+/**
+ * Verify that a set of league matches satisfies all constraints.
+ * Throws if any constraint is violated.
+ */
+export function assertValidLeagueFixtures(matches) {
+  if (matches.length !== 5) {
+    throw new Error(`Expected 5 league matches, got ${matches.length}`);
+  }
+
+  const teamCounts = new Map();
+  const pairs = new Set();
+
+  for (const m of matches) {
+    if (!m.teamA || !m.teamB) continue; // teams not yet wired, skip pair checks
+    const a = String(m.teamA);
+    const b = String(m.teamB);
+    if (a === b) throw new Error(`Match ${m.code}: ${a} plays itself`);
+    const pairKey = [a, b].sort().join('::');
+    if (pairs.has(pairKey)) throw new Error(`Duplicate league pair: ${pairKey}`);
+    pairs.add(pairKey);
+    teamCounts.set(a, (teamCounts.get(a) || 0) + 1);
+    teamCounts.set(b, (teamCounts.get(b) || 0) + 1);
+  }
+
+  if (teamCounts.size !== 5) throw new Error(`Expected 5 teams, found ${teamCounts.size}`);
+  for (const [team, count] of teamCounts) {
+    if (count !== 2) throw new Error(`Team ${team} appears ${count} times, expected 2`);
+  }
+
+  // Verify 3RD_CSE_1 and 3RD_CSE_2 do not play each other.
+  for (const m of matches) {
+    if (!m.teamA || !m.teamB) continue;
+    const a = String(m.teamA);
+    const b = String(m.teamB);
+    if ((a === '3RD_CSE_1' && b === '3RD_CSE_2') || (a === '3RD_CSE_2' && b === '3RD_CSE_1')) {
+      throw new Error('3rd Year CSE 1 and 3rd Year CSE 2 must not play in league stage');
+    }
+  }
+}
+
+/**
+ * Build semifinal match definitions from qualified team IDs.
+ * Returns an array of two match definitions (SF1 and SF2).
+ *
+ * SF1: standings[0] vs standings[3]  (#1 vs #4)
+ * SF2: standings[1] vs standings[2]  (#2 vs #3)
+ */
+export function semifinalBlueprint(qualifiedTeams) {
+  if (qualifiedTeams.length !== 4) {
+    throw new Error(`Expected 4 qualified teams, got ${qualifiedTeams.length}`);
+  }
+  const [t1, t2, t3, t4] = qualifiedTeams;
+  return [
+    {
+      code: 'SF1',
+      stage: STAGES.SEMIFINAL,
+      label: 'Semifinal 1',
+      order: 1,
+      seeds: { A: t1, B: t4 },
+      sources: {
+        A: { matchId: null, label: 'League 1st Place' },
+        B: { matchId: null, label: 'League 4th Place' },
+      },
+    },
+    {
+      code: 'SF2',
+      stage: STAGES.SEMIFINAL,
+      label: 'Semifinal 2',
+      order: 2,
+      seeds: { A: t2, B: t3 },
+      sources: {
+        A: { matchId: null, label: 'League 2nd Place' },
+        B: { matchId: null, label: 'League 3rd Place' },
+      },
+    },
+  ];
+}
+
+/**
+ * Build final match definition from semifinal winner team IDs.
+ */
+export function finalBlueprint(sf1Winner, sf2Winner) {
+  return [
+    {
+      code: 'F1',
+      stage: STAGES.FINAL,
+      label: 'Final',
+      order: 3,
+      seeds: { A: sf1Winner, B: sf2Winner },
+      sources: {
+        A: { matchId: null, label: 'Winner Semifinal 1' },
+        B: { matchId: null, label: 'Winner Semifinal 2' },
+      },
+    },
+  ];
 }

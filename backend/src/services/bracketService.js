@@ -1,5 +1,5 @@
 import { Match, Team } from '../models/index.js';
-import { advancePatch, reopenPatch, canAdvanceInto } from '../domain/bracket.js';
+import { advancePatch, reopenPatch, canAdvanceInto, STAGES } from '../domain/bracket.js';
 import { ApiError } from '../utils/ApiError.js';
 
 /**
@@ -30,8 +30,7 @@ export const bracketService = {
   /**
    * Reverse the advancement caused by `match` when it is reopened/corrected.
    * Clears the downstream slot only if it is fed by this exact match, and only
-   * if that downstream match hasn't itself started (guard against corrupting a
-   * live/finished later match). Cascades a warning otherwise.
+   * if that downstream match hasn't itself started.
    */
   async reverseWinner(match) {
     if (!match.nextMatchId) return { cleared: false };
@@ -41,7 +40,6 @@ export const bracketService = {
     const patch = reopenPatch(match, downstream);
     if (!patch) return { cleared: false };
 
-    // Don't silently corrupt a downstream match that has already begun.
     if (['LIVE', 'FINISHED', 'LOCKED', 'MATCH_DECIDED'].includes(downstream.state)) {
       throw ApiError.conflict(
         `Cannot reopen: downstream ${downstream.label} has already started. Reopen it first.`

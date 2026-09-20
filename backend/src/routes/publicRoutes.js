@@ -17,3 +17,4 @@ publicRoutes.get('/stats', publicController.stats);
 publicRoutes.get('/awards', publicController.awards);
 publicRoutes.get('/matches/:matchId', publicController.matchDetail);
 publicRoutes.get('/search', publicController.search);
+publicRoutes.get('/progress', publicController.tournamentProgress);

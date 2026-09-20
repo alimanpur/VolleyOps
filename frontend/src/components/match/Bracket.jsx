@@ -2,10 +2,10 @@ import { Link } from 'react-router-dom';
 import { slotName } from '../../utils/format.js';
 
 /*
- * Tournament bracket. Desktop shows a horizontal progression Round 1 →
+ * Tournament bracket. Desktop shows a horizontal progression League →
  * Semifinals → Final with connector rules between columns. Mobile stacks the
- * rounds vertically and stays readable. BYE teams appear naturally as a resolved
- * slot — no fake match cards are drawn for them.
+ * rounds vertically and stays readable. TBD slots carry their own explanation
+ * via MatchCard.
  */
 
 function slotLine(slot, { winner, side, state }) {
@@ -47,7 +47,7 @@ function BracketMatch({ match }) {
 }
 
 export function Bracket({ matches }) {
-  const round1 = matches.filter((m) => m.stage === 'ROUND_1');
+  const leagueMatches = matches.filter((m) => m.stage === 'LEAGUE');
   const semis = matches.filter((m) => m.stage === 'SEMIFINAL');
   const final = matches.filter((m) => m.stage === 'FINAL');
 
@@ -65,7 +65,7 @@ export function Bracket({ matches }) {
   return (
     <div className="scroll-x -mx-1 px-1">
       <div className="flex items-stretch gap-10 pb-2" style={{ minWidth: 'min-content' }}>
-        <Column title="Round 1" items={round1} />
+        <Column title="League" items={leagueMatches} />
         <Column title="Semifinals" items={semis} />
         <Column title="Final" items={final} />
       </div>

@@ -6,7 +6,7 @@ import {
   evaluateSet, evaluateMatch, applyPoint, replayRallies,
 } from '../src/domain/scoring.js';
 import {
-  slotsResolved, advancePatch, reopenPatch, canAdvanceInto, bracketBlueprint, STAGES,
+  slotsResolved, advancePatch, reopenPatch, canAdvanceInto, leagueBlueprint, semifinalBlueprint, finalBlueprint, assertValidLeagueFixtures, STAGES,
 } from '../src/domain/bracket.js';
 import { computeStandings } from '../src/domain/standings.js';
 import { derivePlayerStatArray, POINT_TYPES, ERROR_TYPES } from '../src/domain/stats.js';
@@ -129,20 +129,106 @@ test('reopenPatch clears only slot fed by this match', () => {
   assert.equal(reopenPatch(match, downOther), null); // don't clobber unrelated seed
 });
 
-test('bracket blueprint matches the IPS layout with honest BYEs', () => {
-  const bp = bracketBlueprint();
+test('league blueprint has 5 matches with every team twice', () => {
+  const bp = leagueBlueprint();
+  assert.equal(bp.matches.length, 5);
   const byCode = Object.fromEntries(bp.matches.map((m) => [m.code, m]));
-  assert.equal(bp.matches.length, 4); // no fake bye matches
-  assert.equal(byCode.M01.stage, STAGES.ROUND_1);
-  assert.deepEqual(byCode.M01.seeds, { A: '1ST_CSE', B: '1ST_AIML' });
-  assert.equal(byCode.M01.feeds.winnerTo.matchCode, 'M02');
-  // 3rd Year CSE 1 byes straight into SF1 slot A
-  assert.equal(byCode.M02.seeds.A, '3RD_CSE_1');
-  assert.equal(byCode.M02.sources.B.matchCode, 'M01');
-  // SF2 has both teams seeded (byes), final fed by both semis
-  assert.deepEqual(byCode.M03.seeds, { A: '3RD_CSE_2', B: '2ND_YEAR' });
-  assert.equal(byCode.M04.sources.A.matchCode, 'M02');
-  assert.equal(byCode.M04.sources.B.matchCode, 'M03');
+  assert.equal(byCode.M01.stage, STAGES.LEAGUE);
+  assert.deepEqual(byCode.M01.seeds, { A: '3RD_CSE_2', B: '1ST_CSE' });
+  assert.deepEqual(byCode.M02.seeds, { A: '1ST_AIML', B: '3RD_CSE_1' });
+  assert.deepEqual(byCode.M03.seeds, { A: '2ND_YEAR', B: '1ST_CSE' });
+  assert.deepEqual(byCode.M04.seeds, { A: '3RD_CSE_1', B: '2ND_YEAR' });
+  assert.deepEqual(byCode.M05.seeds, { A: '3RD_CSE_2', B: '1ST_AIML' });
+});
+
+test('assertValidLeagueFixtures validates the 5-match structure', () => {
+  const valid = [
+    { code: 'M01', teamA: '3RD_CSE_2', teamB: '1ST_CSE' },
+    { code: 'M02', teamA: '1ST_AIML', teamB: '3RD_CSE_1' },
+    { code: 'M03', teamA: '2ND_YEAR', teamB: '1ST_CSE' },
+    { code: 'M04', teamA: '3RD_CSE_1', teamB: '2ND_YEAR' },
+    { code: 'M05', teamA: '3RD_CSE_2', teamB: '1ST_AIML' },
+  ];
+  assert.ok(() => assertValidLeagueFixtures(valid));
+});
+
+test('assertValidLeagueFixtures rejects wrong match count', () => {
+  assert.throws(() => assertValidLeagueFixtures([]), /Expected 5/);
+});
+
+test('assertValidLeagueFixtures rejects self-play', () => {
+  const bad = [
+    { code: 'M01', teamA: 't1', teamB: 't1' },
+    { code: 'M02', teamA: 't2', teamB: 't3' },
+    { code: 'M03', teamA: 't2', teamB: 't4' },
+    { code: 'M04', teamA: 't3', teamB: 't4' },
+    { code: 'M05', teamA: 't2', teamB: 't5' },
+  ];
+  assert.throws(() => assertValidLeagueFixtures(bad), /plays itself/);
+});
+
+test('assertValidLeagueFixtures rejects duplicate pairs', () => {
+  const bad = [
+    { code: 'M01', teamA: 't1', teamB: 't2' },
+    { code: 'M02', teamA: 't1', teamB: 't2' },
+    { code: 'M03', teamA: 't3', teamB: 't4' },
+    { code: 'M04', teamA: 't3', teamB: 't5' },
+    { code: 'M05', teamA: 't4', teamB: 't5' },
+  ];
+  assert.throws(() => assertValidLeagueFixtures(bad), /Duplicate/);
+});
+
+test('assertValidLeagueFixtures rejects wrong team counts', () => {
+  const bad = [
+    { code: 'M01', teamA: 't1', teamB: 't2' },
+    { code: 'M02', teamA: 't1', teamB: 't3' },
+    { code: 'M03', teamA: 't2', teamB: 't3' },
+    { code: 'M04', teamA: 't2', teamB: 't4' },
+    { code: 'M05', teamA: 't3', teamB: 't4' },
+  ];
+  assert.throws(() => assertValidLeagueFixtures(bad), /Expected 5 teams/);
+});
+
+test('assertValidLeagueFixtures rejects wrong appearances', () => {
+  const bad = [
+    { code: 'M01', teamA: 't1', teamB: 't2' },
+    { code: 'M02', teamA: 't1', teamB: 't3' },
+    { code: 'M03', teamA: 't1', teamB: 't4' },
+    { code: 'M04', teamA: 't2', teamB: 't3' },
+    { code: 'M05', teamA: 't4', teamB: 't5' },
+  ];
+  assert.throws(() => assertValidLeagueFixtures(bad), /t1 appears 3 times/);
+});
+
+test('assertValidLeagueFixtures rejects 3rd Year CSE 1 vs 3rd Year CSE 2 in league', () => {
+  const bad = [
+    { code: 'M01', teamA: '3RD_CSE_1', teamB: '3RD_CSE_2' },
+    { code: 'M02', teamA: '1ST_CSE', teamB: '1ST_AIML' },
+    { code: 'M03', teamA: '2ND_YEAR', teamB: '1ST_CSE' },
+    { code: 'M04', teamA: '1ST_AIML', teamB: '3RD_CSE_1' },
+    { code: 'M05', teamA: '2ND_YEAR', teamB: '3RD_CSE_2' },
+  ];
+  assert.throws(() => assertValidLeagueFixtures(bad), /3rd Year CSE 1 and 3rd Year CSE 2/);
+});
+
+test('semifinal blueprint produces correct pairings', () => {
+  const sf = semifinalBlueprint(['t1', 't2', 't3', 't4']);
+  assert.equal(sf.length, 2);
+  assert.deepEqual(sf[0].seeds, { A: 't1', B: 't4' });
+  assert.deepEqual(sf[1].seeds, { A: 't2', B: 't3' });
+  assert.equal(sf[0].stage, STAGES.SEMIFINAL);
+  assert.equal(sf[1].stage, STAGES.SEMIFINAL);
+});
+
+test('final blueprint produces correct match', () => {
+  const f = finalBlueprint('t1', 't2');
+  assert.equal(f.length, 1);
+  assert.deepEqual(f[0].seeds, { A: 't1', B: 't2' });
+  assert.equal(f[0].stage, STAGES.FINAL);
+});
+
+test('semifinal blueprint rejects wrong team count', () => {
+  assert.throws(() => semifinalBlueprint(['t1', 't2', 't3']), /Expected 4/);
 });
 
 // ---------- standings ----------

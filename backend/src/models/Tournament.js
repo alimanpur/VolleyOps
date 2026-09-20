@@ -21,12 +21,17 @@ const tournamentSchema = new Schema(
       pointsPerSet: { type: Number, default: 25 },
       pointsFinalSet: { type: Number, default: 15 },
       winBy: { type: Number, default: 2 },
+      winPoints: { type: Number, default: 2 },
+      lossPoints: { type: Number, default: 0 },
     },
     // Open scoring: when true, ANY user with the SCORER role may open and score
     // ANY match, ignoring per-match assignment. Reversible at any time. Suits a
     // single-scorer event where assigning every fixture by hand is friction.
     // When false (default), scorers are restricted to matches assigned to them.
     openScoring: { type: Boolean, default: false },
+    // Manual tiebreak overrides: array of { teamId, rank } for ties that
+    // cannot be resolved automatically. Applied during standings computation.
+    tiebreakOverrides: [{ teamId: { type: Schema.Types.ObjectId, ref: 'Team' }, rank: Number }],
     // Publishing gate: public pages only surface a published tournament.
     status: {
       type: String,

@@ -9,6 +9,13 @@ export const adminService = {
   buildBracket: () => http.post('/admin/tournament/bracket'),
   setOpenScoring: (enabled) => http.post('/admin/tournament/open-scoring', { enabled }),
 
+  progress: () => http.get('/admin/tournament/progress'),
+  lockQualification: () => http.post('/admin/tournament/qualification/lock'),
+  generateSemifinals: () => http.post('/admin/tournament/semifinals'),
+  generateFinal: () => http.post('/admin/tournament/final'),
+  completeTournament: () => http.post('/admin/tournament/complete'),
+  setTiebreakOverride: (teamId, rank) => http.post('/admin/tournament/tiebreak', { teamId, rank }),
+
   teams: () => http.get('/admin/teams'),
   createTeam: (data) => http.post('/admin/teams', data),
   updateTeam: (id, data) => http.put(`/admin/teams/${id}`, data),

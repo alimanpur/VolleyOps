@@ -8,10 +8,10 @@ import { STAGE_LABELS } from '../../utils/format.js';
 
 /*
  * The full schedule. We lead with the bracket so the shape of the tournament is
- * legible at a glance, then list every match grouped by stage (Round 1 →
+ * legible at a glance, then list every match grouped by stage (League →
  * Semifinal → Final). TBD slots carry their own explanation via MatchCard.
  */
-const STAGE_ORDER = ['ROUND_1', 'SEMIFINAL', 'FINAL'];
+const STAGE_ORDER = ['LEAGUE', 'SEMIFINAL', 'FINAL'];
 
 export default function FixturesPage() {
   const fixtures = useApi(() => publicService.fixtures(), []);

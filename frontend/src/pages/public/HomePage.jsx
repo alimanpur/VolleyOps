@@ -15,11 +15,16 @@ import { slotName } from '../../utils/format.js';
 export default function HomePage() {
   const tournament = useApi(() => publicService.tournament(), []);
   const overview = useApi(() => publicService.overview(), [], { poll: 12000 });
+  const progress = useApi(() => publicService.progress(), []);
 
   return (
     <div className="space-y-10">
       <AsyncView query={tournament}>
         {({ tournament: t }) => <Hero t={t} live={overview.data?.live?.length} />}
+      </AsyncView>
+
+      <AsyncView query={progress} label="Loading tournament">
+        {(prog) => <ProgressSection data={prog} />}
       </AsyncView>
 
       <AsyncView query={overview} label="Loading tournament">
@@ -97,6 +102,7 @@ export default function HomePage() {
                         <th className="px-4 py-2 text-center font-semibold">P</th>
                         <th className="px-4 py-2 text-center font-semibold">W</th>
                         <th className="px-4 py-2 text-center font-semibold">Pts</th>
+                        <th className="px-4 py-2 text-center font-semibold">Status</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -112,6 +118,18 @@ export default function HomePage() {
                           <td className="tnum px-4 py-2.5 text-center">{row.played}</td>
                           <td className="tnum px-4 py-2.5 text-center">{row.wins}</td>
                           <td className="tnum px-4 py-2.5 text-center font-semibold">{row.points}</td>
+                          <td className="px-4 py-2.5 text-center">
+                            {row.qualificationStatus === 'QUALIFIED' && (
+                              <span className="inline-flex items-center border border-green px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-green" style={{ borderRadius: 'var(--radius-xs)' }}>
+                                Qualified
+                              </span>
+                            )}
+                            {row.qualificationStatus === 'ELIMINATED' && (
+                              <span className="inline-flex items-center border border-scoreRed px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-scoreRed" style={{ borderRadius: 'var(--radius-xs)' }}>
+                                Eliminated
+                              </span>
+                            )}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -152,5 +170,67 @@ function Hero({ t, live }) {
         )}
       </div>
     </section>
+  );
+}
+
+function ProgressSection({ data }) {
+  if (!data) return null;
+  const { stage, league, qualifiedTeams, eliminatedTeam, champion } = data;
+
+  const stageLabel = {
+    LEAGUE: 'League Stage',
+    QUALIFICATION_COMPLETE: 'Qualification Complete',
+    SEMIFINALS: 'Semifinals',
+    FINAL: 'Final',
+    COMPLETED: 'Completed',
+  }[stage] || stage;
+
+  return (
+    <div className="border border-rule bg-surface p-6" style={{ borderRadius: 'var(--radius-sm)' }}>
+      <div className="flex flex-wrap items-center gap-4">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted">Current Stage</p>
+          <p className="font-display text-2xl text-ink">{stageLabel}</p>
+        </div>
+        {champion && (
+          <div className="ml-auto border border-green px-4 py-2" style={{ borderRadius: 'var(--radius-xs)' }}>
+            <p className="text-xs font-semibold uppercase tracking-wider text-green">Champion</p>
+            <p className="font-display text-xl text-ink">{champion.name}</p>
+          </div>
+        )}
+      </div>
+
+      {league && (
+        <div className="mt-4 space-y-2">
+          <div className="flex items-center justify-between text-sm">
+            <span className="font-medium text-ink">League Progress</span>
+            <span className="text-muted">{league.completed} / {league.total} matches</span>
+          </div>
+          <div className="h-2 overflow-hidden bg-paper" style={{ borderRadius: 'var(--radius-xs)' }}>
+            <div
+              className="h-full bg-green transition-all"
+              style={{ width: `${(league.completed / league.total) * 100}%`, borderRadius: 'var(--radius-xs)' }}
+            />
+          </div>
+        </div>
+      )}
+
+      {qualifiedTeams && qualifiedTeams.length > 0 && (
+        <div className="mt-4 space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-wider text-green">Top 4 Qualified</p>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {qualifiedTeams.map((t) => (
+              <div key={t.teamId} className="border border-rule px-3 py-2" style={{ borderRadius: 'var(--radius-xs)' }}>
+                <p className="text-xs text-muted">#{t.rank}</p>
+                <p className="text-sm font-medium text-ink">{t.name}</p>
+              </div>
+            ))}
+          </div>
+          {eliminatedTeam && (
+            <p className="text-xs text-scoreRed">Eliminated: #{eliminatedTeam.rank} {eliminatedTeam.name}</p>
+          )}
+        </div>
+      )}
+    </div>
   );
 }

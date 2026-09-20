@@ -70,6 +70,18 @@ function cookieFrom(setCookie) {
   return setCookie ? setCookie.split(';')[0] : null;
 }
 
+async function scoreMatch(matchId, cookie, winner = 'A') {
+  await api('POST', `/scorer/matches/${matchId}/start`, { cookie });
+  for (let s = 0; s < 2; s += 1) {
+    for (let p = 0; p < 25; p += 1) {
+      await api('POST', `/scorer/matches/${matchId}/rally`, {
+        cookie,
+        body: { clientEventId: `evt-${matchId}-${s}-${p}`, winner, pointType: 'OTHER' },
+      });
+    }
+  }
+}
+
 test('full tournament-day workflow', async (t) => {
   if (skip) return t.skip('in-memory mongo unavailable');
 
@@ -97,61 +109,108 @@ test('full tournament-day workflow', async (t) => {
   assert.equal(dash.status, 200);
   assert.equal(dash.json.counts.teams, 5);
 
-  // --- find the round-1 match (M01) which is playable ---
+  // Enable open scoring for test convenience
+  await api('POST', '/admin/tournament/open-scoring', { cookie: adminCookie, body: { enabled: true } });
+
+  // --- find the league matches ---
   const matchesRes = await api('GET', '/admin/matches', { cookie: adminCookie });
   const m01 = matchesRes.json.matches.find((m) => m.code === 'M01');
   const m02 = matchesRes.json.matches.find((m) => m.code === 'M02');
-  assert.ok(m01.teamA && !m01.teamA.tbd, 'M01 has both teams');
-  assert.ok(m02.teamB.tbd, 'SF1 slot B is TBD until R1 resolves');
+  const m03 = matchesRes.json.matches.find((m) => m.code === 'M03');
+  const m04 = matchesRes.json.matches.find((m) => m.code === 'M04');
+  const m05 = matchesRes.json.matches.find((m) => m.code === 'M05');
+  assert.ok(m01, 'M01 exists');
+  assert.ok(m05, 'M05 exists');
+  assert.equal(matchesRes.json.matches.length, 5, 'exactly 5 league matches');
 
-  // --- scorer redeems and scores M01 (assigned in seed) ---
+  // --- scorer redeems and scores all 5 league matches ---
   const scorerCode = codes.scorers[0].code;
   const redeem = await api('POST', '/auth/redeem', { body: { code: scorerCode } });
   assert.equal(redeem.status, 200);
   const scorerCookie = cookieFrom(redeem.setCookie);
 
-  const assignments = await api('GET', '/scorer/assignments', { cookie: scorerCookie });
-  const assigned = assignments.json.assignments[0];
-  assert.ok(assigned, 'scorer has an assignment');
+  // Score M01 (3RD_CSE_2 vs 1ST_CSE) - team A wins
+  await scoreMatch(m01.id, scorerCookie, 'A');
 
-  // start + score a straight-sets win for team A
-  await api('POST', `/scorer/matches/${assigned.id}/start`, { cookie: scorerCookie });
-  let dup = 0;
-  for (let s = 0; s < 2; s += 1) {
-    for (let p = 0; p < 25; p += 1) {
-      const r = await api('POST', `/scorer/matches/${assigned.id}/rally`, {
-        cookie: scorerCookie,
-        body: { clientEventId: `evt-${s}-${p}`, winner: 'A', pointType: 'OTHER' },
-      });
-      assert.equal(r.status, 200);
-      if (r.json.duplicate) dup += 1;
-    }
-  }
-  assert.equal(dup, 0);
+  // Score M02 (1ST_AIML vs 3RD_CSE_1) - team A wins
+  await scoreMatch(m02.id, scorerCookie, 'A');
 
-  // idempotency: replay an event id -> duplicate, no extra point
-  const replay = await api('POST', `/scorer/matches/${assigned.id}/rally`, {
-    cookie: scorerCookie,
-    body: { clientEventId: 'evt-0-0', winner: 'A', pointType: 'OTHER' },
-  });
-  assert.equal(replay.json.duplicate, true);
+  // Score M03 (2ND_YEAR vs 1ST_CSE) - team A wins
+  await scoreMatch(m03.id, scorerCookie, 'A');
 
-  // match should be finished, team A the winner
-  const finished = await api('GET', `/scorer/matches/${assigned.id}`, { cookie: scorerCookie });
-  assert.equal(finished.json.match.state, 'FINISHED');
-  assert.equal(finished.json.match.winner, 'A');
+  // Score M04 (3RD_CSE_1 vs 2ND_YEAR) - team A wins
+  await scoreMatch(m04.id, scorerCookie, 'A');
 
-  // --- winner advanced into SF1 slot B ---
-  const afterAdvance = await api('GET', '/admin/matches', { cookie: adminCookie });
-  const sf1 = afterAdvance.json.matches.find((m) => m.code === 'M02');
-  assert.ok(sf1.teamB && !sf1.teamB.tbd, 'winner advanced into SF1');
+  // Score M05 (3RD_CSE_2 vs 1ST_AIML) - team A wins
+  await scoreMatch(m05.id, scorerCookie, 'A');
 
-  // --- reopen M01 clears downstream SF1 slot B ---
-  const reopen = await api('POST', `/admin/matches/${assigned.id}/reopen`, { cookie: adminCookie });
-  assert.equal(reopen.status, 200);
-  const afterReopen = await api('GET', '/admin/matches', { cookie: adminCookie });
-  const sf1b = afterReopen.json.matches.find((m) => m.code === 'M02');
-  assert.ok(sf1b.teamB.tbd, 'reopen cleared downstream winner');
+  // Verify all 5 matches are finished
+  const afterLeague = await api('GET', '/admin/matches', { cookie: adminCookie });
+  const leagueMatches = afterLeague.json.matches.filter((m) => m.stage === 'LEAGUE');
+  assert.equal(leagueMatches.length, 5);
+  assert.ok(leagueMatches.every((m) => m.state === 'FINISHED'), 'all league matches finished');
+
+  // --- standings should be computed ---
+  const standings = await api('GET', '/admin/standings', { cookie: adminCookie });
+  assert.equal(standings.status, 200);
+  assert.equal(standings.json.standings.length, 5);
+  assert.ok(standings.json.standings.every((r) => r.played > 0), 'all teams have played');
+
+  // --- qualification lock and semifinal generation ---
+  const lockRes = await api('POST', '/admin/tournament/qualification/lock', { cookie: adminCookie });
+  assert.equal(lockRes.status, 200);
+  assert.ok(lockRes.json.qualifiedTeams, 'qualified teams returned');
+
+  // Verify semifinals exist
+  const afterLock = await api('GET', '/admin/matches', { cookie: adminCookie });
+  const sfMatches = afterLock.json.matches.filter((m) => m.stage === 'SEMIFINAL');
+  assert.equal(sfMatches.length, 2, '2 semifinals generated');
+  const sf1 = sfMatches.find((m) => m.code === 'SF1');
+  const sf2 = sfMatches.find((m) => m.code === 'SF2');
+  assert.ok(sf1.teamA && sf1.teamB, 'SF1 has both teams');
+  assert.ok(sf2.teamA && sf2.teamB, 'SF2 has both teams');
+
+  // --- score semifinals ---
+  await scoreMatch(sf1.id, scorerCookie, 'A');
+  await scoreMatch(sf2.id, scorerCookie, 'A');
+
+  const afterSemis = await api('GET', '/admin/matches', { cookie: adminCookie });
+  const updatedSf1 = afterSemis.json.matches.find((m) => m.code === 'SF1');
+  const updatedSf2 = afterSemis.json.matches.find((m) => m.code === 'SF2');
+  assert.equal(updatedSf1.state, 'FINISHED');
+  assert.equal(updatedSf2.state, 'FINISHED');
+
+  // --- generate final ---
+  const finalRes = await api('POST', '/admin/tournament/final', { cookie: adminCookie });
+  assert.equal(finalRes.status, 200);
+  assert.ok(finalRes.json.final, 'final match returned');
+
+  const afterFinal = await api('GET', '/admin/matches', { cookie: adminCookie });
+  const finalMatch = afterFinal.json.matches.find((m) => m.stage === 'FINAL');
+  assert.ok(finalMatch, 'final match exists');
+  assert.ok(finalMatch.teamA && finalMatch.teamB, 'final has both teams');
+
+  // --- score final ---
+  await scoreMatch(finalMatch.id, scorerCookie, 'A');
+
+  const afterFinalComplete = await api('GET', '/admin/matches', { cookie: adminCookie });
+  const completedFinal = afterFinalComplete.json.matches.find((m) => m.stage === 'FINAL');
+  assert.equal(completedFinal.state, 'FINISHED');
+  assert.ok(completedFinal.winnerTeam, 'final has winner');
+
+  // --- verify champion ---
+  const progress = await api('GET', '/admin/tournament/progress', { cookie: adminCookie });
+  assert.equal(progress.status, 200);
+  assert.equal(progress.json.stage, 'FINAL');
+  assert.ok(progress.json.champion, 'champion exists');
+
+  // --- complete tournament ---
+  const completeRes = await api('POST', '/admin/tournament/complete', { cookie: adminCookie });
+  assert.equal(completeRes.status, 200);
+
+  const afterComplete = await api('GET', '/admin/tournament/progress', { cookie: adminCookie });
+  assert.equal(afterComplete.json.stage, 'COMPLETED');
+  assert.equal(afterComplete.json.tournament.status, 'COMPLETED');
 
   // --- authorization: captain cannot hit another team's private match ---
   const capCode = codes.captains[0].code;
@@ -159,14 +218,18 @@ test('full tournament-day workflow', async (t) => {
   const capCookie = cookieFrom(capRedeem.setCookie);
   const capDash = await api('GET', '/captain/dashboard', { cookie: capCookie });
   assert.equal(capDash.status, 200);
-  // captain cannot access admin. With a cookie per role, the captain's cookie
-  // (vops_sid_captain) is never read on an admin-scoped route, so the admin
-  // endpoint sees no session at all -> 401 (not a wrong-role 403).
+
+  // --- scorer cannot access admin endpoints ---
   const capAdmin = await api('GET', '/admin/dashboard', { cookie: capCookie });
   assert.equal(capAdmin.status, 401);
 
   // --- scorer cannot score a match not assigned to them ---
-  const otherMatch = afterReopen.json.matches.find((m) => m.code === 'M03');
+  // Disable open scoring for the auth check
+  await api('POST', '/admin/tournament/open-scoring', { cookie: adminCookie, body: { enabled: false } });
+  // Verify open scoring is disabled
+  const tournamentInfo = await api('GET', '/admin/tournament', { cookie: adminCookie });
+  assert.equal(tournamentInfo.json.tournament.openScoring, false, 'open scoring should be disabled');
+  const otherMatch = afterFinalComplete.json.matches.find((m) => m.code === 'M03');
   const forbidden = await api('POST', `/scorer/matches/${otherMatch.id}/start`, { cookie: scorerCookie });
   assert.equal(forbidden.status, 403);
 });

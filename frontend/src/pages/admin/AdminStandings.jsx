@@ -34,6 +34,7 @@ export default function AdminStandings() {
                     <th scope="col" className="px-4 py-2.5 text-center font-semibold">Sets</th>
                     <th scope="col" className="px-4 py-2.5 text-center font-semibold">Set ratio</th>
                     <th scope="col" className="px-4 py-2.5 text-center font-semibold">Pts</th>
+                    <th scope="col" className="px-4 py-2.5 text-center font-semibold">Status</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -54,6 +55,23 @@ export default function AdminStandings() {
                         {row.setRatio != null ? row.setRatio.toFixed(2) : '—'}
                       </td>
                       <td className="tnum px-4 py-3 text-center font-semibold text-ink">{row.points}</td>
+                      <td className="px-4 py-3 text-center">
+                        {row.qualificationStatus === 'QUALIFIED' && (
+                          <span className="inline-flex items-center border border-green px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-green" style={{ borderRadius: 'var(--radius-xs)' }}>
+                            Qualified
+                          </span>
+                        )}
+                        {row.qualificationStatus === 'ELIMINATED' && (
+                          <span className="inline-flex items-center border border-scoreRed px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-scoreRed" style={{ borderRadius: 'var(--radius-xs)' }}>
+                            Eliminated
+                          </span>
+                        )}
+                        {row.manualTiebreak && (
+                          <span className="inline-flex items-center border border-amber px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-amber" style={{ borderRadius: 'var(--radius-xs)' }}>
+                            Manual Tiebreak
+                          </span>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -68,3 +86,4 @@ export default function AdminStandings() {
     </div>
   );
 }
+

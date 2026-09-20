@@ -16,11 +16,13 @@ export default function AdminFixtures() {
   const query = useApi(() => adminService.matches(), []);
   const access = useApi(() => adminService.access(), []);
   const courts = useApi(() => adminService.courts(), []);
+  const progress = useApi(() => adminService.progress(), []);
 
   const [busyId, setBusyId] = useState(null);
   const [rowError, setRowError] = useState({});
   const [building, setBuilding] = useState(false);
   const [buildError, setBuildError] = useState(null);
+  const [actionError, setActionError] = useState(null);
 
   const scorers = (access.data?.users || []).filter((u) => u.role === 'SCORER');
   const courtList = courts.data?.courts || [];
@@ -35,6 +37,7 @@ export default function AdminFixtures() {
     try {
       await fn();
       await query.refetch({ quiet: true });
+      await progress.refetch({ quiet: true });
     } catch (err) {
       setError(id, err?.message || 'Action failed.');
     } finally {
@@ -49,10 +52,47 @@ export default function AdminFixtures() {
     try {
       await adminService.buildBracket();
       await query.refetch({ quiet: true });
+      await progress.refetch({ quiet: true });
     } catch (err) {
       setBuildError(err?.message || 'Could not build the bracket.');
     } finally {
       setBuilding(false);
+    }
+  }
+
+  async function onLockQualification() {
+    if (!window.confirm('Lock qualification and generate semifinals? This cannot be undone.')) return;
+    setActionError(null);
+    try {
+      await adminService.lockQualification();
+      await query.refetch({ quiet: true });
+      await progress.refetch({ quiet: true });
+    } catch (err) {
+      setActionError(err?.message || 'Could not lock qualification.');
+    }
+  }
+
+  async function onGenerateFinal() {
+    if (!window.confirm('Generate the final from the completed semifinals?')) return;
+    setActionError(null);
+    try {
+      await adminService.generateFinal();
+      await query.refetch({ quiet: true });
+      await progress.refetch({ quiet: true });
+    } catch (err) {
+      setActionError(err?.message || 'Could not generate final.');
+    }
+  }
+
+  async function onCompleteTournament() {
+    if (!window.confirm('Mark tournament as complete? This locks all operations.')) return;
+    setActionError(null);
+    try {
+      await adminService.completeTournament();
+      await query.refetch({ quiet: true });
+      await progress.refetch({ quiet: true });
+    } catch (err) {
+      setActionError(err?.message || 'Could not complete tournament.');
     }
   }
 
@@ -72,6 +112,18 @@ export default function AdminFixtures() {
           {buildError}
         </p>
       )}
+      {actionError && (
+        <p className="border border-scoreRed bg-surface px-3 py-2 text-sm text-scoreRed" style={{ borderRadius: 'var(--radius-sm)' }}>
+          {actionError}
+        </p>
+      )}
+
+      <AsyncView
+        query={progress}
+        label="Loading tournament progress"
+      >
+        {(progData) => <ProgressPanel data={progData} onLockQualification={onLockQualification} onGenerateFinal={onGenerateFinal} onCompleteTournament={onCompleteTournament} />}
+      </AsyncView>
 
       <AsyncView
         query={query}
@@ -150,6 +202,133 @@ export default function AdminFixtures() {
   );
 }
 
+function ProgressPanel({ data, onLockQualification, onGenerateFinal, onCompleteTournament }) {
+  if (!data) return null;
+  const { stage, league, qualifiedTeams, eliminatedTeam, semifinals, final, champion } = data;
+
+  return (
+    <div className="space-y-6 border border-rule bg-surface p-6" style={{ borderRadius: 'var(--radius-sm)' }}>
+      <h3 className="font-display text-xl text-ink">Tournament Progress</h3>
+
+      {/* Current Stage */}
+      <div className="flex items-center gap-3">
+        <span className="text-xs font-semibold uppercase tracking-wider text-muted">Current Stage:</span>
+        <StageBadge stage={stage} />
+      </div>
+
+      {/* League Progress */}
+      {league && (
+        <div className="space-y-2">
+          <p className="text-sm font-medium text-ink">League Progress</p>
+          <div className="flex items-center gap-4">
+            <div className="h-2 flex-1 overflow-hidden bg-paper" style={{ borderRadius: 'var(--radius-xs)' }}>
+              <div
+                className="h-full bg-green transition-all"
+                style={{ width: `${(league.completed / league.total) * 100}%`, borderRadius: 'var(--radius-xs)' }}
+              />
+            </div>
+            <span className="text-sm font-semibold text-ink tabular-nums">{league.completed} / {league.total}</span>
+          </div>
+          <p className="text-xs text-muted">{league.completed === league.total ? 'League stage complete' : `${league.total - league.completed} matches remaining`}</p>
+        </div>
+      )}
+
+      {/* Qualified Teams */}
+      {qualifiedTeams && qualifiedTeams.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-sm font-semibold text-green">Qualified Teams</p>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {qualifiedTeams.map((t) => (
+              <div key={t.teamId} className="border border-rule px-3 py-2" style={{ borderRadius: 'var(--radius-xs)' }}>
+                <p className="text-xs text-muted">#{t.rank}</p>
+                <p className="text-sm font-medium text-ink">{t.name}</p>
+                <p className="text-xs text-muted">{t.points} pts</p>
+              </div>
+            ))}
+          </div>
+          {eliminatedTeam && (
+            <div className="mt-2 border border-scoreRed px-3 py-2" style={{ borderRadius: 'var(--radius-xs)' }}>
+              <p className="text-xs text-scoreRed">Eliminated</p>
+              <p className="text-sm font-medium text-ink">#{eliminatedTeam.rank} {eliminatedTeam.name}</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Semifinals */}
+      {semifinals && semifinals.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-sm font-semibold text-ink">Semifinals</p>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {semifinals.map((sf) => (
+              <div key={sf.id} className="border border-rule px-3 py-2" style={{ borderRadius: 'var(--radius-xs)' }}>
+                <p className="text-xs text-muted">{sf.label}</p>
+                <p className="text-sm text-ink">{slotName(sf.teamA)} vs {slotName(sf.teamB)}</p>
+                <StatusBadge state={sf.state} />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Final */}
+      {final && (
+        <div className="space-y-2">
+          <p className="text-sm font-semibold text-ink">Final</p>
+          <div className="border border-rule px-3 py-2" style={{ borderRadius: 'var(--radius-xs)' }}>
+            <p className="text-xs text-muted">{final.label}</p>
+            <p className="text-sm text-ink">{slotName(final.teamA)} vs {slotName(final.teamB)}</p>
+            <StatusBadge state={final.state} />
+          </div>
+        </div>
+      )}
+
+      {/* Champion */}
+      {champion && (
+        <div className="border border-green px-3 py-2" style={{ borderRadius: 'var(--radius-xs)' }}>
+          <p className="text-xs font-semibold uppercase tracking-wider text-green">Champion</p>
+          <p className="text-lg font-display text-ink">{champion.name}</p>
+        </div>
+      )}
+
+      {/* Actions */}
+      <div className="flex flex-wrap gap-3">
+        {stage === 'QUALIFICATION_COMPLETE' && (
+          <Button variant="primary" onClick={onLockQualification}>Lock Qualification & Generate Semifinals</Button>
+        )}
+        {stage === 'SEMIFINALS' && semifinals && semifinals.length === 2 && semifinals.every((sf) => sf.winner) && (
+          <Button variant="primary" onClick={onGenerateFinal}>Generate Final</Button>
+        )}
+        {stage === 'FINAL' && final && ['FINISHED', 'LOCKED'].includes(final.state) && (
+          <Button variant="primary" onClick={onCompleteTournament}>Complete Tournament</Button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function StageBadge({ stage }) {
+  const labels = {
+    LEAGUE: 'League Stage',
+    QUALIFICATION_COMPLETE: 'Qualification Complete',
+    SEMIFINALS: 'Semifinals',
+    FINAL: 'Final',
+    COMPLETED: 'Completed',
+  };
+  const colors = {
+    LEAGUE: 'bg-paper text-ink border-rule',
+    QUALIFICATION_COMPLETE: 'bg-green/10 text-green border-green',
+    SEMIFINALS: 'bg-amber/10 text-amber border-amber',
+    FINAL: 'bg-deepGreen/10 text-deepGreen border-deepGreen',
+    COMPLETED: 'bg-scoreRed/10 text-scoreRed border-scoreRed',
+  };
+  return (
+    <span className={`inline-flex items-center border px-2.5 py-1 text-xs font-semibold uppercase tracking-wide ${colors[stage] || colors.LEAGUE}`} style={{ borderRadius: 'var(--radius-xs)' }}>
+      {labels[stage] || stage}
+    </span>
+  );
+}
+
 function MatchRow({
   match, scorers, courtList, busy, error,
   onSetCourt, onSetTime, onAssignScorer, onReopen, onReset, onLock, onCancel,
@@ -157,12 +336,9 @@ function MatchRow({
   const { state } = match;
   const finished = ['FINISHED', 'LOCKED'].includes(state);
   const cancelled = state === 'CANCELLED';
-  // A match that has begun but isn't locked can be hard-reset to Scheduled —
-  // the escape hatch for a match started by mistake. LOCKED must be reopened first.
   const resettable = ['PRE_MATCH', 'LIVE', 'SET_COMPLETE', 'MATCH_DECIDED', 'FINISHED'].includes(state);
   const [scorerSel, setScorerSel] = useState('');
 
-  // datetime-local wants "YYYY-MM-DDTHH:mm" in local time.
   const dtValue = match.scheduledAt ? toLocalInput(match.scheduledAt) : '';
 
   return (

@@ -10,6 +10,7 @@ import { matchService } from '../services/matchService.js';
 import { authService } from '../services/authService.js';
 import { recordAudit } from '../services/auditService.js';
 import { serializeMatch, serializeTeam, serializePlayer } from '../services/serializers.js';
+import { STAGES } from '../domain/bracket.js';
 
 async function activeTournament() {
   const t = await tournamentService.getActive();
@@ -73,7 +74,7 @@ export const adminController = {
 
   // ---- Tournament ----
   getTournament: asyncHandler(async (_req, res) => {
-    const t = await tournamentService.getActive();
+    const t = await activeTournament();
     res.json({ tournament: t });
   }),
 
@@ -117,6 +118,71 @@ export const adminController = {
     const matches = await tournamentService.buildBracket(t._id);
     await audit(req, { action: 'BRACKET_BUILT', targetType: 'Tournament', targetId: t._id });
     res.json({ matches: await Promise.all(matches.map((m) => serializeMatch(m))) });
+  }),
+
+  getProgress: asyncHandler(async (req, res) => {
+    const t = await activeTournament();
+    const progress = await tournamentService.getProgress(t._id);
+    res.json(progress);
+  }),
+
+  lockQualification: asyncHandler(async (req, res) => {
+    const t = await activeTournament();
+    const result = await tournamentService.lockQualification(t._id, req.auth);
+    await audit(req, { action: 'QUALIFICATION_LOCKED', targetType: 'Tournament', targetId: t._id, metadata: { qualifiedTeams: result.qualifiedTeams } });
+    res.json(result);
+  }),
+
+  generateSemifinals: asyncHandler(async (req, res) => {
+    const t = await activeTournament();
+    const result = await tournamentService.lockQualification(t._id, req.auth);
+    await audit(req, { action: 'SEMIFINALS_GENERATED', targetType: 'Tournament', targetId: t._id, metadata: { qualifiedTeams: result.qualifiedTeams } });
+    res.json({ qualifiedTeams: result.qualifiedTeams, semifinals: await Promise.all(Object.values(result.semifinals).map((m) => serializeMatch(m))) });
+  }),
+
+  generateFinal: asyncHandler(async (req, res) => {
+    const t = await activeTournament();
+    const finalMatch = await tournamentService.generateFinal(t._id, req.auth);
+    await audit(req, { action: 'FINAL_GENERATED', targetType: 'Tournament', targetId: t._id, targetLabel: finalMatch.label });
+    res.json({ final: await serializeMatch(finalMatch) });
+  }),
+
+  completeTournament: asyncHandler(async (req, res) => {
+    const t = await activeTournament();
+    const matches = await Match.find({ tournament: t._id });
+    const finalMatch = matches.find((m) => m.stage === STAGES.FINAL);
+    if (!finalMatch || !['FINISHED', 'LOCKED'].includes(finalMatch.state)) {
+      throw ApiError.conflict('Final must be completed before ending the tournament');
+    }
+    if (!finalMatch.winnerTeam) {
+      throw ApiError.conflict('Final winner must be determined');
+    }
+    t.status = 'COMPLETED';
+    await t.save();
+    await audit(req, { action: 'TOURNAMENT_COMPLETED', targetType: 'Tournament', targetId: t._id, targetLabel: t.name });
+    res.json({ ok: true, tournament: t });
+  }),
+
+  setTiebreakOverride: asyncHandler(async (req, res) => {
+    const t = await activeTournament();
+    const { teamId, rank } = req.body || {};
+    if (!teamId || rank === undefined) {
+      throw ApiError.validation('teamId and rank are required');
+    }
+    const team = await Team.findOne({ _id: teamId, tournament: t._id });
+    if (!team) throw ApiError.notFound('Team not found');
+    
+    const overrides = t.tiebreakOverrides || [];
+    const existingIndex = overrides.findIndex((o) => String(o.teamId) === String(teamId));
+    if (existingIndex >= 0) {
+      overrides[existingIndex].rank = rank;
+    } else {
+      overrides.push({ teamId, rank });
+    }
+    t.tiebreakOverrides = overrides;
+    await t.save();
+    await audit(req, { action: 'TIEBREAK_OVERRIDE_SET', targetType: 'Tournament', targetId: t._id, targetLabel: team.name, metadata: { rank } });
+    res.json({ tiebreakOverrides: t.tiebreakOverrides });
   }),
 
   // ---- Teams ----
@@ -291,7 +357,7 @@ export const adminController = {
   }),
 
   // ---- Awards ----
-  listAwards: asyncHandler(async (req, res) => {
+  listAwards: asyncHandler(async (_req, res) => {
     const t = await activeTournament();
     const awards = await Award.find({ tournament: t._id })
       .populate('winner', 'name')
@@ -328,7 +394,7 @@ export const adminController = {
   }),
 
   // ---- Notifications ----
-  listNotifications: asyncHandler(async (req, res) => {
+  listNotifications: asyncHandler(async (_req, res) => {
     const t = await activeTournament();
     const items = await Notification.find({ tournament: t._id }).sort({ createdAt: -1 }).limit(100);
     res.json({
@@ -388,7 +454,6 @@ export const adminController = {
     });
     const code = await authService.issueCode(user._id);
     await audit(req, { action: 'ACCESS_CREATED', targetType: 'User', targetId: user._id, targetLabel: displayName, metadata: { role } });
-    // Code shown once.
     res.status(201).json({ user: { id: user._id, role, displayName }, code });
   }),
 
@@ -409,7 +474,7 @@ export const adminController = {
   }),
 
   // ---- Audit log ----
-  audit: asyncHandler(async (req, res) => {
+  audit: asyncHandler(async (_req, res) => {
     const t = await activeTournament();
     const entries = await AuditEntry.find({ tournament: t._id }).sort({ createdAt: -1 }).limit(200);
     res.json({ entries });

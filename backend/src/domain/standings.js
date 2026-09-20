@@ -1,12 +1,16 @@
 /**
  * Pure standings computation from finished matches.
  *
- * Tournament rules: win = 2 points, loss = 0. Tiebreakers, in order:
+ * Tournament rules are configurable: winPoints and lossPoints come from the
+ * Tournament.rules object. Default is win=2, loss=0.
+ *
+ * Tiebreakers, in order:
  *   1. tournament points
  *   2. wins
  *   3. set ratio (sets won / sets lost)
  *   4. point ratio (points for / points against)
  *   5. head-to-head result
+ *   6. manual tiebreak flag (requires admin action)
  *
  * Input matches are plain objects that are FINISHED and carry:
  *   { teamA, teamB, winner: 'A'|'B', setScores: [{ a, b }] }
@@ -14,7 +18,12 @@
  * with no finished matches show zeroed rows.
  */
 
-const WIN_POINTS = 2;
+export function defaultRules() {
+  return {
+    winPoints: 2,
+    lossPoints: 0,
+  };
+}
 
 function emptyRow(teamId) {
   return {
@@ -27,6 +36,8 @@ function emptyRow(teamId) {
     setsLost: 0,
     pointsFor: 0,
     pointsAgainst: 0,
+    manualTiebreak: false,
+    qualificationStatus: null, // 'QUALIFIED' | 'ELIMINATED' | null
   };
 }
 
@@ -38,8 +49,10 @@ function ratio(numerator, denominator) {
 /**
  * @param {string[]} teamIds  every team in the tournament (so zero rows appear)
  * @param {object[]} matches  finished matches with winner + setScores
+ * @param {object} rules     { winPoints, lossPoints }
+ * @param {Array<{teamId: string, rank: number}>} [tiebreakOverrides]
  */
-export function computeStandings(teamIds, matches) {
+export function computeStandings(teamIds, matches, rules = defaultRules(), tiebreakOverrides = []) {
   const rows = new Map();
   for (const id of teamIds) rows.set(String(id), emptyRow(id));
 
@@ -76,12 +89,15 @@ export function computeStandings(teamIds, matches) {
     const winnerId = match.winner === 'A' ? aId : bId;
     const loserId = match.winner === 'A' ? bId : aId;
     rows.get(winnerId).wins += 1;
-    rows.get(winnerId).points += WIN_POINTS;
+    rows.get(winnerId).points += rules.winPoints;
     rows.get(loserId).losses += 1;
+    rows.get(loserId).points += rules.lossPoints;
 
     if (!h2h.has(winnerId)) h2h.set(winnerId, new Set());
     h2h.get(winnerId).add(loserId);
   }
+
+  const overrideMap = new Map((tiebreakOverrides || []).map((o) => [String(o.teamId), o.rank]));
 
   const ordered = [...rows.values()].sort((x, y) => {
     if (y.points !== x.points) return y.points - x.points;
@@ -95,6 +111,15 @@ export function computeStandings(teamIds, matches) {
     // head-to-head: if x beat y, x ranks higher
     if (h2h.get(x.teamId)?.has(y.teamId)) return -1;
     if (h2h.get(y.teamId)?.has(x.teamId)) return 1;
+    // manual tiebreak flag: teams flagged for manual tiebreak rank lower
+    if (x.manualTiebreak && !y.manualTiebreak) return 1;
+    if (y.manualTiebreak && !x.manualTiebreak) return -1;
+    // Check for overrides on tied teams
+    const xRank = overrideMap.get(x.teamId);
+    const yRank = overrideMap.get(y.teamId);
+    if (xRank !== undefined && yRank !== undefined) return xRank - yRank;
+    if (xRank !== undefined) return -1;
+    if (yRank !== undefined) return 1;
     return 0;
   });
 

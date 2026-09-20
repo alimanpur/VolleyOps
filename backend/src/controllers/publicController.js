@@ -5,6 +5,7 @@ import { tournamentService } from '../services/tournamentService.js';
 import { statsService } from '../services/statsService.js';
 import { matchService } from '../services/matchService.js';
 import { serializeMatch, serializeTeam, serializePlayer } from '../services/serializers.js';
+import { STAGES } from '../domain/bracket.js';
 
 /** Resolve the published tournament or 404 with an honest message. */
 async function requirePublicTournament() {
@@ -70,6 +71,12 @@ export const publicController = {
   standings: asyncHandler(async (_req, res) => {
     const t = await requirePublicTournament();
     res.json({ standings: await statsService.standings(t._id) });
+  }),
+
+  tournamentProgress: asyncHandler(async (_req, res) => {
+    const t = await requirePublicTournament();
+    const progress = await tournamentService.getProgress(t._id);
+    res.json(progress);
   }),
 
   teams: asyncHandler(async (_req, res) => {

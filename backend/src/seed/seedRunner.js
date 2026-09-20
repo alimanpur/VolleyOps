@@ -53,11 +53,14 @@ export async function runSeed({ log = () => {} } = {}) {
 
   // Bracket
   const matches = await tournamentService.buildBracket(tournament._id);
-  // Assign courts to the first playable matches.
-  if (matches[0]) { matches[0].court = courts[0]._id; matches[0].scheduledAt = new Date('2026-09-21T15:00:00+05:30'); await matches[0].save(); }
-  if (matches[1]) { matches[1].court = courts[0]._id; await matches[1].save(); }
-  if (matches[2]) { matches[2].court = courts[1]._id; matches[2].scheduledAt = new Date('2026-09-21T15:00:00+05:30'); await matches[2].save(); }
-  log(`Built bracket: ${matches.length} matches`);
+  // Assign courts to the first few league matches.
+  const leaguePlayable = matches.filter((m) => m.teamA && m.teamB && !m.teamA.tbd && !m.teamB.tbd);
+  if (leaguePlayable[0]) { leaguePlayable[0].court = courts[0]._id; leaguePlayable[0].scheduledAt = new Date('2026-09-21T15:00:00+05:30'); await leaguePlayable[0].save(); }
+  if (leaguePlayable[1]) { leaguePlayable[1].court = courts[0]._id; leaguePlayable[1].scheduledAt = new Date('2026-09-21T15:00:00+05:30'); await leaguePlayable[1].save(); }
+  if (leaguePlayable[2]) { leaguePlayable[2].court = courts[1]._id; leaguePlayable[2].scheduledAt = new Date('2026-09-21T15:00:00+05:30'); await leaguePlayable[2].save(); }
+  if (leaguePlayable[3]) { leaguePlayable[3].court = courts[1]._id; leaguePlayable[3].scheduledAt = new Date('2026-09-22T15:00:00+05:30'); await leaguePlayable[3].save(); }
+  if (leaguePlayable[4]) { leaguePlayable[4].court = courts[0]._id; leaguePlayable[4].scheduledAt = new Date('2026-09-22T15:00:00+05:30'); await leaguePlayable[4].save(); }
+  log(`Built league: ${matches.length} matches`);
 
   // Admin
   const admin = await User.create({
@@ -89,10 +92,13 @@ export async function runSeed({ log = () => {} } = {}) {
   codes.scorers.push({ name: 'Scorer Two', code: await authService.issueCode(scorer2._id) });
 
   const freshMatches = await Match.find({ tournament: tournament._id }).sort({ order: 1 });
-  // M01 (round 1) and M03 (SF2, both teams seeded) are immediately playable.
+  // All 5 league matches are immediately playable.
   const playable = freshMatches.filter((m) => m.teamA && m.teamB);
   if (playable[0]) { playable[0].scorer = scorer1._id; await playable[0].save(); }
-  if (playable[1]) { playable[1].scorer = scorer2._id; await playable[1].save(); }
+  if (playable[1]) { playable[1].scorer = scorer1._id; await playable[1].save(); }
+  if (playable[2]) { playable[2].scorer = scorer2._id; await playable[2].save(); }
+  if (playable[3]) { playable[3].scorer = scorer2._id; await playable[3].save(); }
+  if (playable[4]) { playable[4].scorer = scorer1._id; await playable[4].save(); }
 
   // Award templates (unpublished)
   for (const [key, title] of [

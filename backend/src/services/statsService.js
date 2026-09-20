@@ -9,7 +9,7 @@ export const statsService = {
   async standings(tournamentId) {
     const teams = await Team.find({ tournament: tournamentId }).select('_id name code year colorToken');
     const teamIds = teams.map((t) => String(t._id));
-    const matches = await Match.find({ tournament: tournamentId }).select('teamA teamB winner setScores state');
+    const matches = await Match.find({ tournament: tournamentId }).select('teamA teamB winner setScores state stage');
     const finished = matches
       .filter((m) => isConcluded(m.state) && m.winner)
       .map((m) => ({
@@ -18,7 +18,16 @@ export const statsService = {
         winner: m.winner,
         setScores: m.setScores.filter((s) => s.complete),
       }));
-    const rows = computeStandings(teamIds, finished);
+    
+    // Get tournament rules for points configuration
+    const { Tournament } = await import('../models/index.js');
+    const tournament = await Tournament.findById(tournamentId);
+    const rules = {
+      winPoints: tournament?.rules?.winPoints ?? 2,
+      lossPoints: tournament?.rules?.lossPoints ?? 0,
+    };
+    
+    const rows = computeStandings(teamIds, finished, rules, tournament.tiebreakOverrides || []);
     const teamById = Object.fromEntries(teams.map((t) => [String(t._id), t]));
     return rows.map((r) => ({
       ...r,
@@ -49,7 +58,6 @@ export const statsService = {
     }));
     const lines = derivePlayerStatArray(mapped);
 
-    // Attach player + team metadata; optionally filter by team.
     const playerIds = lines.map((l) => l.playerId);
     const players = await Player.find({ _id: { $in: playerIds } })
       .select('name jerseyNumber team position')

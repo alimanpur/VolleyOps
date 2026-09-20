@@ -14,4 +14,5 @@ export const publicService = {
   awards: () => http.get('/public/awards'),
   match: (id) => http.get(`/public/matches/${id}`),
   search: (q) => http.get(`/public/search?q=${encodeURIComponent(q)}`),
+  progress: () => http.get('/public/progress'),
 };

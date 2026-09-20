@@ -15,6 +15,12 @@ adminRoutes.put('/tournament', adminController.upsertTournament);
 adminRoutes.post('/tournament/publish', adminController.publish);
 adminRoutes.post('/tournament/bracket', adminController.buildBracket);
 adminRoutes.post('/tournament/open-scoring', adminController.setOpenScoring);
+adminRoutes.get('/tournament/progress', adminController.getProgress);
+adminRoutes.post('/tournament/qualification/lock', adminController.lockQualification);
+adminRoutes.post('/tournament/semifinals', adminController.generateSemifinals);
+adminRoutes.post('/tournament/final', adminController.generateFinal);
+adminRoutes.post('/tournament/complete', adminController.completeTournament);
+adminRoutes.post('/tournament/tiebreak', adminController.setTiebreakOverride);
 
 // Teams
 adminRoutes.get('/teams', adminController.listTeams);

@@ -16,10 +16,14 @@ import { slotName, formatTime } from '../../utils/format.js';
  */
 export default function AdminOverview() {
   const query = useApi(() => adminService.dashboard(), [], { poll: 12000 });
+  const progress = useApi(() => adminService.progress(), []);
 
   return (
     <div className="space-y-8">
       <SectionHead kicker="Operations" title="Overview" />
+      <AsyncView query={progress} label="Loading tournament">
+        {(prog) => <ProgressHeader data={prog} />}
+      </AsyncView>
       <AsyncView query={query} label="Loading dashboard">
         {(data) => {
           const { live = [], next, attention = {}, counts = {} } = data;
@@ -151,6 +155,68 @@ export default function AdminOverview() {
   );
 }
 
+function ProgressHeader({ data }) {
+  if (!data) return null;
+  const { stage, league, qualifiedTeams, eliminatedTeam, champion } = data;
+
+  const stageLabel = {
+    LEAGUE: 'League Stage',
+    QUALIFICATION_COMPLETE: 'Qualification Complete',
+    SEMIFINALS: 'Semifinals',
+    FINAL: 'Final',
+    COMPLETED: 'Completed',
+  }[stage] || stage;
+
+  return (
+    <div className="space-y-4 border border-rule bg-surface p-6" style={{ borderRadius: 'var(--radius-sm)' }}>
+      <div className="flex flex-wrap items-center gap-4">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted">Current Stage</p>
+          <p className="font-display text-2xl text-ink">{stageLabel}</p>
+        </div>
+        {champion && (
+          <div className="ml-auto border border-green px-4 py-2" style={{ borderRadius: 'var(--radius-sm)' }}>
+            <p className="text-xs font-semibold uppercase tracking-wider text-green">Champion</p>
+            <p className="font-display text-xl text-ink">{champion.name}</p>
+          </div>
+        )}
+      </div>
+
+      {league && (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-sm">
+            <span className="font-medium text-ink">League Progress</span>
+            <span className="text-muted">{league.completed} / {league.total} matches</span>
+          </div>
+          <div className="h-2 overflow-hidden bg-paper" style={{ borderRadius: 'var(--radius-xs)' }}>
+            <div
+              className="h-full bg-green transition-all"
+              style={{ width: `${(league.completed / league.total) * 100}%`, borderRadius: 'var(--radius-xs)' }}
+            />
+          </div>
+        </div>
+      )}
+
+      {qualifiedTeams && qualifiedTeams.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-wider text-green">Qualified (Top 4)</p>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {qualifiedTeams.map((t) => (
+              <div key={t.teamId} className="border border-rule px-3 py-2" style={{ borderRadius: 'var(--radius-xs)' }}>
+                <p className="text-xs text-muted">#{t.rank}</p>
+                <p className="text-sm font-medium text-ink">{t.name}</p>
+              </div>
+            ))}
+          </div>
+          {eliminatedTeam && (
+            <p className="text-xs text-scoreRed">Eliminated: #{eliminatedTeam.rank} {eliminatedTeam.name}</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Stat({ label, value, to, last }) {
   const inner = (
     <div className={`px-4 py-4 ${last ? '' : 'border-r border-rule'}`}>
@@ -198,3 +264,4 @@ function AttentionRow({ tone = 'muted', label, title, detail, to }) {
     </div>
   );
 }
+

@@ -51,7 +51,12 @@ export const POINT_TYPE_LABELS = {
 };
 
 export const STAGE_LABELS = {
-  ROUND_1: 'Round 1',
+  LEAGUE: 'League',
   SEMIFINAL: 'Semifinal',
   FINAL: 'Final',
+};
+
+export const QUALIFICATION_LABELS = {
+  QUALIFIED: 'Qualified',
+  ELIMINATED: 'Eliminated',
 };

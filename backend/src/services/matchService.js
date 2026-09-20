@@ -2,9 +2,11 @@ import { Match, RallyEvent, Team, Player } from '../models/index.js';
 import { ApiError } from '../utils/ApiError.js';
 import { DEFAULT_RULES, replayRallies } from '../domain/scoring.js';
 import { MATCH_STATES, isScorable, assertTransition, slotsResolved } from '../domain/lifecycle.js';
+import { STAGES } from '../domain/bracket.js';
 import { normalizeAttribution } from '../domain/rally.js';
 import { bracketService } from './bracketService.js';
 import { recordAudit } from './auditService.js';
+import { tournamentService } from './tournamentService.js';
 
 /**
  * Match orchestration: lifecycle transitions plus the authoritative scoring
@@ -21,7 +23,6 @@ async function rebuildFromEvents(match, rules) {
   const events = await RallyEvent.find({ match: match._id, voided: false })
     .sort({ seq: 1 })
     .select('winner');
-  // replayRallies is the pure authority for set/match completion.
   return replayRallies(events.map((e) => ({ winner: e.winner })), rules);
 }
 
@@ -72,17 +73,13 @@ export const matchService = {
     const { clientEventId, winner, pointType } = payload;
     if (!clientEventId) throw ApiError.validation('clientEventId is required');
 
-    // Idempotency FIRST, before the scorable guard. A replayed event (e.g. the
-    // offline outbox re-flushing the point that finished the match) must be a
-    // safe no-op whatever the current state — otherwise the final rally, once
-    // the match is FINISHED, would be rejected and stall the queue.
+    // Idempotency FIRST
     const existing = await RallyEvent.findOne({ match: match._id, clientEventId });
     if (existing) {
       const fresh = await Match.findById(match._id);
       return { match: fresh, duplicate: true };
     }
 
-    // Only a genuinely new point requires the match to be live.
     if (!isScorable(match.state)) {
       throw ApiError.conflict('Match is not live; cannot score');
     }
@@ -90,7 +87,6 @@ export const matchService = {
 
     const attribution = normalizeAttribution({ pointType, winner, ...payload });
 
-    // Determine current set + running score from the live set.
     const setNumber = match.currentSet;
     const liveSet = match.setScores.find((s) => s.setNumber === setNumber) || { a: 0, b: 0 };
     const scoreAfter = {
@@ -129,7 +125,6 @@ export const matchService = {
     if (!last) throw ApiError.conflict('Nothing to undo');
     last.voided = true;
     await last.save();
-    // Undo can bring a decided match back to life.
     if (match.state === MATCH_STATES.FINISHED || match.state === MATCH_STATES.MATCH_DECIDED) {
       match.state = MATCH_STATES.LIVE;
       match.winner = null;
@@ -174,7 +169,6 @@ export const matchService = {
       playerIn,
       setNumber: setNumber || match.currentSet,
     });
-    // Reflect on the active lineup so the scorer sees the right six.
     match.lineups = match.lineups.map((l) =>
       l.side === side && String(l.player) === String(playerOut) ? { side, player: playerIn } : l
     );
@@ -200,6 +194,12 @@ export const matchService = {
       match.winnerTeam = matchWinner === 'A' ? match.teamA : match.teamB;
       match.finishedAt = match.finishedAt || new Date();
       await match.save();
+
+      // For league matches, check if all league matches are now complete
+      if (match.stage === STAGES.LEAGUE) {
+        await this._checkLeagueCompletion(match.tournament);
+      }
+
       // Advance downstream after the match doc is saved.
       await bracketService.advanceWinner(match);
     } else {
@@ -210,6 +210,28 @@ export const matchService = {
   },
 
   /**
+   * Check if all league matches are completed. If so, lock qualification.
+   * This is called automatically after each league match completion.
+   */
+  async _checkLeagueCompletion(tournamentId) {
+    const matches = await Match.find({ tournament: tournamentId, stage: STAGES.LEAGUE });
+    const allCompleted = matches.every((m) => ['FINISHED', 'LOCKED'].includes(m.state));
+    if (allCompleted && matches.length > 0) {
+      // League is complete. Do not auto-generate semifinals — Admin must do that.
+      // But we record the state change for the progress endpoint.
+      await recordAudit({
+        tournament: tournamentId,
+        actor: null,
+        actorLabel: null,
+        action: 'LEAGUE_STAGE_COMPLETED',
+        targetType: 'Tournament',
+        targetId: tournamentId,
+        targetLabel: 'League Stage',
+      });
+    }
+  },
+
+  /**
    * Admin reopen: bring a finished match back to LIVE for correction and clear
    * any downstream advancement it produced.
    */
@@ -217,7 +239,6 @@ export const matchService = {
     if (![MATCH_STATES.FINISHED, MATCH_STATES.LOCKED, MATCH_STATES.MATCH_DECIDED].includes(match.state)) {
       throw ApiError.conflict('Only a finished/locked match can be reopened');
     }
-    // Reverse downstream first (throws if downstream already started).
     await bracketService.reverseWinner(match);
     match.state = MATCH_STATES.LIVE;
     match.winner = null;
@@ -237,23 +258,15 @@ export const matchService = {
   },
 
   /**
-   * Admin reset: wipe a match back to SCHEDULED as if it never started. Unlike
-   * undo (which voids events one at a time) or reopen (which brings a finished
-   * match back to LIVE), this is a hard reset for a match started by mistake:
-   * it deletes every rally event and clears all scoring/lineup state. Reverses
-   * any downstream advancement first (refuses if the downstream match has
-   * already started, to avoid corrupting a later live/finished match). A locked
-   * match must be reopened before it can be reset.
+   * Admin reset: wipe a match back to SCHEDULED as if it never started.
    */
   async resetMatch(match, actor) {
     if (match.state === MATCH_STATES.LOCKED) {
       throw ApiError.conflict('Unlock or reopen the match before resetting it');
     }
-    // If this match had produced a winner downstream, pull it back out first.
     if (match.winnerTeam) {
       await bracketService.reverseWinner(match);
     }
-    // Hard delete the event log — a reset is not an audit-preserving undo.
     await RallyEvent.deleteMany({ match: match._id });
     match.state = MATCH_STATES.SCHEDULED;
     match.currentSet = 1;
