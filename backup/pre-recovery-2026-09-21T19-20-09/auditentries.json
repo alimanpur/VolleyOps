@@ -1,0 +1,28 @@
+[
+  {
+    "_id": "6ab179af073d9ee35fab250f",
+    "tournament": "6ab176dc6507ea8852868699",
+    "actor": "6ab176df6507ea8852868711",
+    "actorLabel": "Tournament Admin",
+    "action": "ADMIN_LOGIN",
+    "targetType": null,
+    "targetId": null,
+    "targetLabel": null,
+    "metadata": null,
+    "createdAt": "2026-09-21T18:38:39.979Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab179c7073d9ee35fab2561",
+    "tournament": "6ab176dc6507ea8852868699",
+    "actor": "6ab176df6507ea8852868711",
+    "actorLabel": "Tournament Admin",
+    "action": "BRACKET_BUILT",
+    "targetType": "Tournament",
+    "targetId": "6ab176dc6507ea8852868699",
+    "targetLabel": null,
+    "metadata": null,
+    "createdAt": "2026-09-21T18:39:03.162Z",
+    "__v": 0
+  }
+]

@@ -1,0 +1,58 @@
+[
+  {
+    "_id": "6ab176e06507ea885286873c",
+    "tournament": "6ab176dc6507ea8852868699",
+    "key": "BEST_ATTACKER",
+    "title": "Best Attacker",
+    "description": null,
+    "winner": null,
+    "winnerTeam": null,
+    "published": false,
+    "candidates": [],
+    "createdAt": "2026-09-21T18:26:40.622Z",
+    "updatedAt": "2026-09-21T18:26:40.622Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab176e06507ea885286873e",
+    "tournament": "6ab176dc6507ea8852868699",
+    "key": "BEST_DEFENDER",
+    "title": "Best Defender",
+    "description": null,
+    "winner": null,
+    "winnerTeam": null,
+    "published": false,
+    "candidates": [],
+    "createdAt": "2026-09-21T18:26:40.651Z",
+    "updatedAt": "2026-09-21T18:26:40.651Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab176e06507ea8852868740",
+    "tournament": "6ab176dc6507ea8852868699",
+    "key": "BEST_SETTER",
+    "title": "Best Setter",
+    "description": null,
+    "winner": null,
+    "winnerTeam": null,
+    "published": false,
+    "candidates": [],
+    "createdAt": "2026-09-21T18:26:40.681Z",
+    "updatedAt": "2026-09-21T18:26:40.681Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab176e06507ea8852868742",
+    "tournament": "6ab176dc6507ea8852868699",
+    "key": "BEST_PLAYER",
+    "title": "Best Player of the Tournament",
+    "description": null,
+    "winner": null,
+    "winnerTeam": null,
+    "published": false,
+    "candidates": [],
+    "createdAt": "2026-09-21T18:26:40.711Z",
+    "updatedAt": "2026-09-21T18:26:40.711Z",
+    "__v": 0
+  }
+]

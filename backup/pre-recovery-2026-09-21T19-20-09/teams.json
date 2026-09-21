@@ -1,0 +1,72 @@
+[
+  {
+    "_id": "6ab176dc6507ea885286869d",
+    "tournament": "6ab176dc6507ea8852868699",
+    "code": "1ST_CSE",
+    "name": "LOCAL SPRINTERS",
+    "shortName": "Sprinters",
+    "year": 1,
+    "captain": "6ab176dc6507ea88528686a1",
+    "seed": null,
+    "colorToken": "green",
+    "createdAt": "2026-09-21T18:26:36.648Z",
+    "updatedAt": "2026-09-21T18:26:37.884Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab176dd6507ea88528686b6",
+    "tournament": "6ab176dc6507ea8852868699",
+    "code": "1ST_AIML",
+    "name": "ONE HIT WONDERS",
+    "shortName": "OHW",
+    "year": 1,
+    "captain": "6ab176dd6507ea88528686b8",
+    "seed": null,
+    "colorToken": "amber",
+    "createdAt": "2026-09-21T18:26:37.913Z",
+    "updatedAt": "2026-09-21T18:26:38.160Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab176de6507ea88528686c7",
+    "tournament": "6ab176dc6507ea8852868699",
+    "code": "2ND_YEAR",
+    "name": "NET DESTROYERS",
+    "shortName": "NetDest",
+    "year": 2,
+    "captain": "6ab176de6507ea88528686c9",
+    "seed": null,
+    "colorToken": "graphite",
+    "createdAt": "2026-09-21T18:26:38.190Z",
+    "updatedAt": "2026-09-21T18:26:38.440Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab176de6507ea88528686d8",
+    "tournament": "6ab176dc6507ea8852868699",
+    "code": "3RD_CSE_1",
+    "name": "HIGH IMPACT",
+    "shortName": "HighImp",
+    "year": 3,
+    "captain": "6ab176de6507ea88528686da",
+    "seed": null,
+    "colorToken": "deepGreen",
+    "createdAt": "2026-09-21T18:26:38.469Z",
+    "updatedAt": "2026-09-21T18:26:38.706Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab176de6507ea88528686e9",
+    "tournament": "6ab176dc6507ea8852868699",
+    "code": "3RD_CSE_2",
+    "name": "BLOCK PARTY",
+    "shortName": "BlockParty",
+    "year": 3,
+    "captain": "6ab176de6507ea88528686eb",
+    "seed": null,
+    "colorToken": "scoreRed",
+    "createdAt": "2026-09-21T18:26:38.736Z",
+    "updatedAt": "2026-09-21T18:26:39.005Z",
+    "__v": 0
+  }
+]

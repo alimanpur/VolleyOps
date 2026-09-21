@@ -1,0 +1,27 @@
+[
+  {
+    "_id": "6ab176dc6507ea8852868699",
+    "name": "IPS Academy Volleyball Tournament",
+    "subtitle": "Inter-Year Championship",
+    "venue": "IPS Academy, Indore",
+    "startDate": "2026-09-21T04:00:00.000Z",
+    "endDate": "2026-09-22T15:30:00.000Z",
+    "startTimeNote": "Matches begin after 3:00 PM",
+    "timezone": "Asia/Kolkata",
+    "rules": {
+      "bestOf": 3,
+      "pointsPerSet": 25,
+      "pointsFinalSet": 15,
+      "winBy": 2,
+      "winPoints": 2,
+      "lossPoints": 0
+    },
+    "openScoring": false,
+    "status": "PUBLISHED",
+    "isActive": true,
+    "tiebreakOverrides": [],
+    "createdAt": "2026-09-21T18:26:36.615Z",
+    "updatedAt": "2026-09-21T18:26:36.615Z",
+    "__v": 0
+  }
+]

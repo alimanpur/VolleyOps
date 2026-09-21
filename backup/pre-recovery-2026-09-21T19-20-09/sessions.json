@@ -1,0 +1,14 @@
+[
+  {
+    "_id": "6ab179af073d9ee35fab250d",
+    "user": "6ab176df6507ea8852868711",
+    "role": "ADMIN",
+    "tournament": "6ab176dc6507ea8852868699",
+    "team": null,
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36",
+    "expiresAt": "2026-09-22T06:38:39.740Z",
+    "createdAt": "2026-09-21T18:38:39.741Z",
+    "updatedAt": "2026-09-21T18:38:39.741Z",
+    "__v": 0
+  }
+]

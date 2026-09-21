@@ -1,0 +1,17 @@
+[
+  {
+    "_id": "6ab176e06507ea8852868744",
+    "tournament": "6ab176dc6507ea8852868699",
+    "type": "GENERAL",
+    "audience": "ALL",
+    "team": null,
+    "user": null,
+    "title": "Tournament schedule published",
+    "body": "Matches begin after 3:00 PM on 21 September.",
+    "match": null,
+    "readBy": [],
+    "createdAt": "2026-09-21T18:26:40.741Z",
+    "updatedAt": "2026-09-21T18:26:40.741Z",
+    "__v": 0
+  }
+]

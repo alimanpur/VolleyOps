@@ -1,0 +1,22 @@
+[
+  {
+    "_id": "6ab176df6507ea88528686fa",
+    "tournament": "6ab176dc6507ea8852868699",
+    "name": "Court 1",
+    "location": "Main Arena",
+    "isActive": true,
+    "createdAt": "2026-09-21T18:26:39.035Z",
+    "updatedAt": "2026-09-21T18:26:39.035Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab176df6507ea88528686fc",
+    "tournament": "6ab176dc6507ea8852868699",
+    "name": "Court 2",
+    "location": "Practice Hall",
+    "isActive": true,
+    "createdAt": "2026-09-21T18:26:39.064Z",
+    "updatedAt": "2026-09-21T18:26:39.064Z",
+    "__v": 0
+  }
+]
