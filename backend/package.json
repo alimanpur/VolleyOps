@@ -12,7 +12,8 @@
     "start": "node src/server.js",
     "seed": "node src/seed/seed.js",
     "test": "node --test \"test/**/*.test.js\"",
-    "verify": "node scripts/verify-graph.mjs"
+    "verify": "node scripts/verify-graph.mjs",
+    "rename-teams": "node scripts/rename-teams.mjs"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

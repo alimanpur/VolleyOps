@@ -24,11 +24,11 @@ export const TOURNAMENT = {
 
 // code -> { name, year, colorToken }
 export const TEAMS = [
-  { code: '1ST_CSE', name: '1st year cse', shortName: 'CSE-1', year: 1, colorToken: 'green' },
-  { code: '1ST_AIML', name: '1st year aiml', shortName: 'AIML-1', year: 1, colorToken: 'amber' },
-  { code: '2ND_YEAR', name: '2nd year', shortName: '2nd Yr', year: 2, colorToken: 'graphite' },
-  { code: '3RD_CSE_1', name: '3rd year cse 1', shortName: 'CSE 1', year: 3, colorToken: 'deepGreen' },
-  { code: '3RD_CSE_2', name: '3rd year cse 2', shortName: 'CSE 2', year: 3, colorToken: 'scoreRed' },
+  { code: '1ST_CSE', name: 'LOCAL SPRINTERS', shortName: 'Sprinters', year: 1, colorToken: 'green' },
+  { code: '1ST_AIML', name: 'ONE HIT WONDERS', shortName: 'OHW', year: 1, colorToken: 'amber' },
+  { code: '2ND_YEAR', name: 'NET DESTROYERS', shortName: 'NetDest', year: 2, colorToken: 'graphite' },
+  { code: '3RD_CSE_1', name: 'HIGH IMPACT', shortName: 'HighImp', year: 3, colorToken: 'deepGreen' },
+  { code: '3RD_CSE_2', name: 'BLOCK PARTY', shortName: 'BlockParty', year: 3, colorToken: 'scoreRed' },
 ];
 
 const POSITIONS = ['SETTER', 'OUTSIDE', 'MIDDLE', 'OPPOSITE', 'OUTSIDE', 'MIDDLE', 'LIBERO'];
