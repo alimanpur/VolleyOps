@@ -181,7 +181,9 @@ export const tournamentService = {
 
   /**
    * Lock qualification after all league matches are completed.
-   * Generates semifinals based on final standings.
+   * Generates semifinals based on final standings. Idempotent: if editable
+   * semifinals already exist, updates their participants in place instead of
+   * deleting and recreating.
    */
   async lockQualification(tournamentId, actor) {
     const matches = await Match.find({ tournament: tournamentId });
@@ -195,14 +197,39 @@ export const tournamentService = {
       throw ApiError.conflict('Not all league matches are completed');
     }
 
-    // Compute final standings
     const standings = await this.getStandings(tournamentId);
     const qualifiedTeamIds = standings.slice(0, 4).map((r) => r.teamId);
 
-    // Delete any existing semifinals/finals (should not exist yet)
+    const existingSemis = await Match.find({ tournament: tournamentId, stage: STAGES.SEMIFINAL }).sort({ order: 1 });
+
+    if (existingSemis.length === 2) {
+      const started = existingSemis.some((m) =>
+        ['LIVE', 'FINISHED', 'LOCKED', 'MATCH_DECIDED'].includes(m.state)
+      );
+      if (started) {
+        throw ApiError.conflict(
+          'Cannot update semifinals: one or more have already started. Reopen them first.'
+        );
+      }
+
+      const sfDefs = semifinalBlueprint(qualifiedTeamIds);
+      for (let i = 0; i < existingSemis.length; i++) {
+        const m = existingSemis[i];
+        const def = sfDefs[i];
+        m.teamA = def.seeds.A;
+        m.teamB = def.seeds.B;
+        m.source = {
+          A: def.sources?.A ? { matchId: null, label: def.sources.A.label } : null,
+          B: def.sources?.B ? { matchId: null, label: def.sources.B.label } : null,
+        };
+        await m.save();
+      }
+
+      return { qualifiedTeams: qualifiedTeamIds, semifinals: Object.fromEntries(existingSemis.map((m) => [m.code, m])) };
+    }
+
     await Match.deleteMany({ tournament: tournamentId, stage: { $in: [STAGES.SEMIFINAL, STAGES.FINAL] } });
 
-    // Create semifinals
     const sfDefs = semifinalBlueprint(qualifiedTeamIds);
     const created = {};
     for (const def of sfDefs) {

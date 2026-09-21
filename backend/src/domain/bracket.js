@@ -6,8 +6,8 @@
  * does not meet in the league.
  *
  * After all league matches are completed, top 4 qualify for semifinals:
- *   SF1: #1 vs #4
- *   SF2: #2 vs #3
+ *   SF1: #1 vs #2
+ *   SF2: #3 vs #4
  * Final: Winner SF1 vs Winner SF2
  *
  * These functions operate on plain match-like objects and return the *patches*
@@ -169,8 +169,8 @@ export function assertValidLeagueFixtures(matches) {
  * Build semifinal match definitions from qualified team IDs.
  * Returns an array of two match definitions (SF1 and SF2).
  *
- * SF1: standings[0] vs standings[3]  (#1 vs #4)
- * SF2: standings[1] vs standings[2]  (#2 vs #3)
+ * SF1: standings[0] vs standings[1]  (#1 vs #2)
+ * SF2: standings[2] vs standings[3]  (#3 vs #4)
  */
 export function semifinalBlueprint(qualifiedTeams) {
   if (qualifiedTeams.length !== 4) {
@@ -183,10 +183,10 @@ export function semifinalBlueprint(qualifiedTeams) {
       stage: STAGES.SEMIFINAL,
       label: 'Semifinal 1',
       order: 1,
-      seeds: { A: t1, B: t4 },
+      seeds: { A: t1, B: t2 },
       sources: {
         A: { matchId: null, label: 'League 1st Place' },
-        B: { matchId: null, label: 'League 4th Place' },
+        B: { matchId: null, label: 'League 2nd Place' },
       },
     },
     {
@@ -194,10 +194,10 @@ export function semifinalBlueprint(qualifiedTeams) {
       stage: STAGES.SEMIFINAL,
       label: 'Semifinal 2',
       order: 2,
-      seeds: { A: t2, B: t3 },
+      seeds: { A: t3, B: t4 },
       sources: {
-        A: { matchId: null, label: 'League 2nd Place' },
-        B: { matchId: null, label: 'League 3rd Place' },
+        A: { matchId: null, label: 'League 3rd Place' },
+        B: { matchId: null, label: 'League 4th Place' },
       },
     },
   ];

@@ -45,22 +45,20 @@ export function useScoringOutbox(matchId, { onSynced } = {}) {
     flushing.current = true;
     setSyncing(true);
     try {
-      let queue = readQueue(storageKey);
-      while (queue.length > 0) {
+      while (true) {
+        const queue = readQueue(storageKey);
+        if (queue.length === 0) break;
         const event = queue[0];
         try {
           const res = await scorerService.rally(matchId, event);
-          // Success (or idempotent duplicate) — drop the head, reconcile state.
-          queue = queue.slice(1);
-          persist(queue);
+          const updated = queue.slice(1);
+          persist(updated);
           setError(null);
           if (res?.match && onSyncedRef.current) onSyncedRef.current(res);
         } catch (err) {
           if (err instanceof ApiError && err.status === 0) {
-            // Network problem — stop, keep the queue, we'll retry later.
             break;
           }
-          // Server rejected the event: do not continue unsafely.
           setError(err.message || 'The server rejected a scoring event');
           break;
         }

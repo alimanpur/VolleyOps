@@ -214,8 +214,8 @@ test('assertValidLeagueFixtures rejects 3rd Year CSE 1 vs 3rd Year CSE 2 in leag
 test('semifinal blueprint produces correct pairings', () => {
   const sf = semifinalBlueprint(['t1', 't2', 't3', 't4']);
   assert.equal(sf.length, 2);
-  assert.deepEqual(sf[0].seeds, { A: 't1', B: 't4' });
-  assert.deepEqual(sf[1].seeds, { A: 't2', B: 't3' });
+  assert.deepEqual(sf[0].seeds, { A: 't1', B: 't2' });
+  assert.deepEqual(sf[1].seeds, { A: 't3', B: 't4' });
   assert.equal(sf[0].stage, STAGES.SEMIFINAL);
   assert.equal(sf[1].stage, STAGES.SEMIFINAL);
 });
