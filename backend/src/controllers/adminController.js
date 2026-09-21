@@ -129,14 +129,34 @@ export const adminController = {
   lockQualification: asyncHandler(async (req, res) => {
     const t = await activeTournament();
     const result = await tournamentService.lockQualification(t._id, req.auth);
-    await audit(req, { action: 'QUALIFICATION_LOCKED', targetType: 'Tournament', targetId: t._id, metadata: { qualifiedTeams: result.qualifiedTeams } });
+    await audit(req, {
+      action: 'QUALIFICATION_LOCKED',
+      targetType: 'Tournament',
+      targetId: t._id,
+      metadata: {
+        qualifiedTeams: result.qualifiedTeams,
+        semifinalChanges: result.before?.length
+          ? { before: result.before, after: result.after }
+          : null,
+      },
+    });
     res.json(result);
   }),
 
   generateSemifinals: asyncHandler(async (req, res) => {
     const t = await activeTournament();
     const result = await tournamentService.lockQualification(t._id, req.auth);
-    await audit(req, { action: 'SEMIFINALS_GENERATED', targetType: 'Tournament', targetId: t._id, metadata: { qualifiedTeams: result.qualifiedTeams } });
+    await audit(req, {
+      action: 'SEMIFINALS_GENERATED',
+      targetType: 'Tournament',
+      targetId: t._id,
+      metadata: {
+        qualifiedTeams: result.qualifiedTeams,
+        semifinalChanges: result.before?.length
+          ? { before: result.before, after: result.after }
+          : null,
+      },
+    });
     res.json({ qualifiedTeams: result.qualifiedTeams, semifinals: await Promise.all(Object.values(result.semifinals).map((m) => serializeMatch(m))) });
   }),
 

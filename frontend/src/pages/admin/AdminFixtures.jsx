@@ -23,6 +23,8 @@ export default function AdminFixtures() {
   const [building, setBuilding] = useState(false);
   const [buildError, setBuildError] = useState(null);
   const [actionError, setActionError] = useState(null);
+  const [showSemifinalModal, setShowSemifinalModal] = useState(false);
+  const [activating, setActivating] = useState(false);
 
   const scorers = (access.data?.users || []).filter((u) => u.role === 'SCORER');
   const courtList = courts.data?.courts || [];
@@ -60,15 +62,18 @@ export default function AdminFixtures() {
     }
   }
 
-  async function onLockQualification() {
-    if (!window.confirm('Lock qualification and generate semifinals? This cannot be undone.')) return;
+  async function onActivateSemifinals() {
+    setActivating(true);
     setActionError(null);
     try {
       await adminService.lockQualification();
       await query.refetch({ quiet: true });
       await progress.refetch({ quiet: true });
+      setShowSemifinalModal(false);
     } catch (err) {
-      setActionError(err?.message || 'Could not lock qualification.');
+      setActionError(err?.message || 'Could not activate semifinals.');
+    } finally {
+      setActivating(false);
     }
   }
 
@@ -96,6 +101,17 @@ export default function AdminFixtures() {
     }
   }
 
+  const progData = progress.data;
+  const qualifiedTeams = progData?.qualifiedTeams || [];
+  const eliminatedTeam = progData?.eliminatedTeam;
+
+  const sf1Calc = qualifiedTeams[0] && qualifiedTeams[1]
+    ? { label: 'Semifinal 1', teamA: qualifiedTeams[0], teamB: qualifiedTeams[1] }
+    : null;
+  const sf2Calc = qualifiedTeams[2] && qualifiedTeams[3]
+    ? { label: 'Semifinal 2', teamA: qualifiedTeams[2], teamB: qualifiedTeams[3] }
+    : null;
+
   return (
     <div className="space-y-8">
       <SectionHead
@@ -122,7 +138,7 @@ export default function AdminFixtures() {
         query={progress}
         label="Loading tournament progress"
       >
-        {(progData) => <ProgressPanel data={progData} onLockQualification={onLockQualification} onGenerateFinal={onGenerateFinal} onCompleteTournament={onCompleteTournament} />}
+        {(progData) => <ProgressPanel data={progData} onActivateSemifinals={() => setShowSemifinalModal(true)} onGenerateFinal={onGenerateFinal} onCompleteTournament={onCompleteTournament} />}
       </AsyncView>
 
       <AsyncView
@@ -198,11 +214,73 @@ export default function AdminFixtures() {
           </div>
         )}
       </AsyncView>
+
+      {showSemifinalModal && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-ink/40" onClick={() => setShowSemifinalModal(false)}>
+          <div
+            className="w-full max-w-lg border border-rule bg-paper p-6"
+            style={{ borderRadius: 'var(--radius-sm)' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="font-display text-xl text-ink">Activate Semifinals</h3>
+            <p className="mt-1 text-sm text-muted">The current league standings will be used to create the semifinal fixtures.</p>
+
+            <div className="mt-4 space-y-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-green">Final League Standings</p>
+                <div className="mt-2 space-y-1">
+                  {qualifiedTeams.map((t) => (
+                    <div key={t.teamId} className="flex items-center justify-between text-sm">
+                      <span className="text-muted">#{t.rank}</span>
+                      <span className="font-medium text-ink">{t.name}</span>
+                      <span className="text-xs text-muted">{t.points} pts</span>
+                    </div>
+                  ))}
+                  {eliminatedTeam && (
+                    <div className="flex items-center justify-between text-sm text-scoreRed">
+                      <span className="text-muted">#{eliminatedTeam.rank}</span>
+                      <span className="font-medium">{eliminatedTeam.name}</span>
+                      <span className="text-xs">Eliminated</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="rule-t border-rule pt-4">
+                <p className="text-xs font-semibold uppercase tracking-wider text-green">Semifinals To Activate</p>
+                <div className="mt-2 grid gap-3 sm:grid-cols-2">
+                  {sf1Calc && (
+                    <div className="border border-rule px-3 py-2" style={{ borderRadius: 'var(--radius-xs)' }}>
+                      <p className="text-xs text-muted">Semifinal 1</p>
+                      <p className="text-sm font-medium text-ink">{sf1Calc.teamA.name} vs {sf1Calc.teamB.name}</p>
+                    </div>
+                  )}
+                  {sf2Calc && (
+                    <div className="border border-rule px-3 py-2" style={{ borderRadius: 'var(--radius-xs)' }}>
+                      <p className="text-xs text-muted">Semifinal 2</p>
+                      <p className="text-sm font-medium text-ink">{sf2Calc.teamA.name} vs {sf2Calc.teamB.name}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-end gap-2">
+              <Button variant="quiet" onClick={() => setShowSemifinalModal(false)} disabled={activating}>
+                Cancel
+              </Button>
+              <Button variant="primary" onClick={onActivateSemifinals} disabled={activating || qualifiedTeams.length < 4}>
+                {activating ? 'Activating…' : 'ACTIVATE SEMIFINALS'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function ProgressPanel({ data, onLockQualification, onGenerateFinal, onCompleteTournament }) {
+function ProgressPanel({ data, onActivateSemifinals, onGenerateFinal, onCompleteTournament }) {
   if (!data) return null;
   const { stage, league, qualifiedTeams, eliminatedTeam, semifinals, final, champion } = data;
 
@@ -294,7 +372,7 @@ function ProgressPanel({ data, onLockQualification, onGenerateFinal, onCompleteT
       {/* Actions */}
       <div className="flex flex-wrap gap-3">
         {stage === 'QUALIFICATION_COMPLETE' && (
-          <Button variant="primary" onClick={onLockQualification}>Lock Qualification & Generate Semifinals</Button>
+          <Button variant="primary" onClick={onActivateSemifinals}>ACTIVATE SEMIFINALS</Button>
         )}
         {stage === 'SEMIFINALS' && semifinals && semifinals.length === 2 && semifinals.every((sf) => sf.winner) && (
           <Button variant="primary" onClick={onGenerateFinal}>Generate Final</Button>

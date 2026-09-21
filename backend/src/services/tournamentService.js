@@ -1,6 +1,7 @@
 import { Tournament, Team, Match } from '../models/index.js';
 import { leagueBlueprint, semifinalBlueprint, finalBlueprint, assertValidLeagueFixtures, STAGES } from '../domain/bracket.js';
 import { ApiError } from '../utils/ApiError.js';
+import mongoose from 'mongoose';
 
 /** Tournament lifecycle + bracket construction from the canonical blueprint. */
 export const tournamentService = {
@@ -181,9 +182,12 @@ export const tournamentService = {
 
   /**
    * Lock qualification after all league matches are completed.
-   * Generates semifinals based on final standings. Idempotent: if editable
+   * Generates/updates semifinals based on final standings. Idempotent: if editable
    * semifinals already exist, updates their participants in place instead of
    * deleting and recreating.
+   *
+   * Uses a transaction when the MongoDB deployment supports it; falls back to
+   * sequential operations otherwise (e.g. in-memory test servers).
    */
   async lockQualification(tournamentId, actor) {
     const matches = await Match.find({ tournament: tournamentId });
@@ -202,55 +206,85 @@ export const tournamentService = {
 
     const existingSemis = await Match.find({ tournament: tournamentId, stage: STAGES.SEMIFINAL }).sort({ order: 1 });
 
-    if (existingSemis.length === 2) {
-      const started = existingSemis.some((m) =>
-        ['LIVE', 'FINISHED', 'LOCKED', 'MATCH_DECIDED'].includes(m.state)
-      );
-      if (started) {
-        throw ApiError.conflict(
-          'Cannot update semifinals: one or more have already started. Reopen them first.'
+    const before = existingSemis.map((m) => ({ id: m._id, code: m.code, teamA: m.teamA, teamB: m.teamB }));
+
+    const applyUpdate = async (session) => {
+      if (existingSemis.length === 2) {
+        const started = existingSemis.some((m) =>
+          ['LIVE', 'FINISHED', 'LOCKED', 'MATCH_DECIDED'].includes(m.state)
         );
+        if (started) {
+          throw ApiError.conflict(
+            'Cannot update semifinals: one or more have already started. Reopen them first.'
+          );
+        }
+
+        const sfDefs = semifinalBlueprint(qualifiedTeamIds);
+        for (let i = 0; i < existingSemis.length; i++) {
+          const m = existingSemis[i];
+          const def = sfDefs[i];
+          m.teamA = def.seeds.A;
+          m.teamB = def.seeds.B;
+          m.source = {
+            A: def.sources?.A ? { matchId: null, label: def.sources.A.label } : null,
+            B: def.sources?.B ? { matchId: null, label: def.sources.B.label } : null,
+          };
+          await m.save({ session });
+        }
+
+        return { qualifiedTeams: qualifiedTeamIds, semifinals: Object.fromEntries(existingSemis.map((m) => [m.code, m])), before, after: existingSemis.map((m) => ({ id: m._id, code: m.code, teamA: m.teamA, teamB: m.teamB })) };
       }
+
+      await Match.deleteMany({ tournament: tournamentId, stage: { $in: [STAGES.SEMIFINAL, STAGES.FINAL] } }, { session });
 
       const sfDefs = semifinalBlueprint(qualifiedTeamIds);
-      for (let i = 0; i < existingSemis.length; i++) {
-        const m = existingSemis[i];
-        const def = sfDefs[i];
-        m.teamA = def.seeds.A;
-        m.teamB = def.seeds.B;
-        m.source = {
-          A: def.sources?.A ? { matchId: null, label: def.sources.A.label } : null,
-          B: def.sources?.B ? { matchId: null, label: def.sources.B.label } : null,
-        };
-        await m.save();
+      const created = {};
+      for (const def of sfDefs) {
+        const doc = await Match.create(
+          [
+            {
+              tournament: tournamentId,
+              code: def.code,
+              stage: def.stage,
+              label: def.label,
+              order: def.order,
+              teamA: def.seeds.A,
+              teamB: def.seeds.B,
+              source: {
+                A: def.sources?.A ? { matchId: null, label: def.sources.A.label } : null,
+                B: def.sources?.B ? { matchId: null, label: def.sources.B.label } : null,
+              },
+              state: 'SCHEDULED',
+            },
+          ],
+          { session }
+        );
+        created[def.code] = doc[0];
       }
 
-      return { qualifiedTeams: qualifiedTeamIds, semifinals: Object.fromEntries(existingSemis.map((m) => [m.code, m])) };
+      return { qualifiedTeams: qualifiedTeamIds, semifinals: created, before: [], after: Object.values(created).map((m) => ({ id: m._id, code: m.code, teamA: m.teamA, teamB: m.teamB })) };
+    };
+
+    let session;
+    let usedTransaction = false;
+    try {
+      session = await mongoose.startSession();
+      session.startTransaction();
+      usedTransaction = true;
+      const result = await applyUpdate(session);
+      await session.commitTransaction();
+      session.endSession();
+      return result;
+    } catch (err) {
+      if (session) {
+        try { await session.abortTransaction(); } catch { /* ignore */ }
+        try { session.endSession(); } catch { /* ignore */ }
+      }
+      if (err.codeName === 'IllegalOperation' && err.code === 20 && usedTransaction) {
+        return applyUpdate(null);
+      }
+      throw err;
     }
-
-    await Match.deleteMany({ tournament: tournamentId, stage: { $in: [STAGES.SEMIFINAL, STAGES.FINAL] } });
-
-    const sfDefs = semifinalBlueprint(qualifiedTeamIds);
-    const created = {};
-    for (const def of sfDefs) {
-      const doc = await Match.create({
-        tournament: tournamentId,
-        code: def.code,
-        stage: def.stage,
-        label: def.label,
-        order: def.order,
-        teamA: def.seeds.A,
-        teamB: def.seeds.B,
-        source: {
-          A: def.sources?.A ? { matchId: null, label: def.sources.A.label } : null,
-          B: def.sources?.B ? { matchId: null, label: def.sources.B.label } : null,
-        },
-        state: 'SCHEDULED',
-      });
-      created[def.code] = doc;
-    }
-
-    return { qualifiedTeams: qualifiedTeamIds, semifinals: created };
   },
 
   /**
