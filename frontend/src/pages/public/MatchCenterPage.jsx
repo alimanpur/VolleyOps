@@ -5,6 +5,8 @@ import { AsyncView, EmptyState } from '../../components/ui/states.jsx';
 import { Scoreboard } from '../../components/match/Scoreboard.jsx';
 import { StatusBadge } from '../../components/ui/primitives.jsx';
 import { slotName, formatTime, POINT_TYPE_LABELS, STAGE_LABELS } from '../../utils/format.js';
+import { useEffect, useRef } from 'react';
+import confetti from 'canvas-confetti';
 
 /*
  * The match center. A big scoreboard, the meta line (stage, court, status), and
@@ -14,6 +16,52 @@ import { slotName, formatTime, POINT_TYPE_LABELS, STAGE_LABELS } from '../../uti
 export default function MatchCenterPage() {
   const { matchId } = useParams();
   const query = useApi(() => publicService.match(matchId), [matchId], { poll: 12000 });
+  const confettiFiredRef = useRef(false);
+
+  useEffect(() => {
+    if (confettiFiredRef.current) return;
+    if (query.loading || !query.data) return;
+
+    const { match } = query.data;
+    const isFinal = match.stage === 'FINAL' || match.code === 'F1';
+    const isFinished = match.state === 'FINISHED' || match.state === 'LOCKED';
+    const hasWinner = Boolean(match.winner);
+    const hasThreeSets = match.setScores?.length === 3;
+    const allSetsComplete = hasThreeSets && match.setScores.every((s) => s.complete);
+
+    if (!isFinal || !isFinished || !hasWinner || !allSetsComplete) return;
+
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (prefersReducedMotion) return;
+
+    confettiFiredRef.current = true;
+
+    const duration = 2500;
+    const end = Date.now() + duration;
+
+    const frame = () => {
+      confetti({
+        particleCount: 2,
+        angle: 60,
+        spread: 55,
+        origin: { x: 0, y: 0.6 },
+        colors: ['#0f6b3c', '#0a4a2a', '#d9d4c7', '#c8321f'],
+      });
+      confetti({
+        particleCount: 2,
+        angle: 120,
+        spread: 55,
+        origin: { x: 1, y: 0.6 },
+        colors: ['#0f6b3c', '#0a4a2a', '#d9d4c7', '#c8321f'],
+      });
+
+      if (Date.now() < end) {
+        requestAnimationFrame(frame);
+      }
+    };
+
+    frame();
+  }, [query.data, query.loading]);
 
   return (
     <div className="space-y-8">

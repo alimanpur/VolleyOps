@@ -1,5 +1,5 @@
 /**
- * Development seed definition for the IPS Academy Volleyball Tournament.
+ * Development seed definition for the Volleyball Tournament.
  *
  * This is clearly-labelled DEVELOPMENT data used to exercise every workflow. It
  * seeds the five real teams and a full, eligible roster per team so rosters read
@@ -10,9 +10,9 @@
  */
 
 export const TOURNAMENT = {
-  name: 'IPS Academy Volleyball Tournament',
-  subtitle: 'Inter-Year Championship',
-  venue: 'IPS Academy, Indore',
+  name: 'Volleyball Tournament',
+  subtitle: 'Volleyball Tournament',
+  venue: 'Indore',
   startDate: new Date('2026-09-21T09:30:00+05:30'),
   endDate: new Date('2026-09-22T21:00:00+05:30'),
   startTimeNote: 'Matches begin after 3:00 PM',

@@ -74,7 +74,7 @@ function Masthead() {
         <Link to="/" className="flex items-baseline gap-2">
           <span className="font-display text-2xl tracking-tight text-ink">VolleyOps</span>
           <span className="hidden text-xs font-semibold uppercase tracking-wider text-green sm:inline">
-            IPS Academy
+            Volleyball Tournament
           </span>
         </Link>
 
@@ -197,7 +197,7 @@ function Footer() {
           <div className="lg:col-span-2">
             <span className="font-display text-2xl text-ink">VolleyOps</span>
             <p className="mt-2 max-w-xs text-sm text-muted">
-              IPS Academy Volleyball Tournament
+              Volleyball Tournament
             </p>
             <p className="mt-1 text-sm text-muted">21–22 September 2026 · from 3:00 PM IST</p>
           </div>
@@ -221,7 +221,7 @@ function Footer() {
           </div>
         </div>
         <div className="mt-8 rule-t border-rule pt-5 text-xs text-muted">
-          © 2026 VolleyOps · IPS Academy Volleyball Tournament
+          © 2026 VolleyOps
         </div>
       </div>
     </footer>

@@ -1,5 +1,5 @@
 /**
- * Pure tournament structure logic for the IPS Academy 5-team league format.
+ * Pure tournament structure logic for the 5-team league format.
  *
  * LEAGUE STAGE: 5 matches, every team plays exactly twice.
  * No team plays itself, no duplicate pairs, 3rd Year CSE 1 vs 3rd Year CSE 2
@@ -73,7 +73,7 @@ export function canAdvanceInto(downstreamMatch, slot, teamId) {
 }
 
 /**
- * The canonical 5-match league fixture for the IPS Academy tournament.
+ * The canonical 5-match league fixture for the tournament.
  * Every team plays exactly twice. The order is fixed by competition rules
  * but can be reordered by Admin without changing the underlying rules.
  *

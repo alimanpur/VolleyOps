@@ -1,6 +1,6 @@
 ﻿# VolleyOps
 
-Tournament management and live scoring for the **IPS Academy Volleyball Tournament** (21–22 September 2026, matches from 3:00 PM IST). One codebase, four purpose-built experiences: a public spectator site, a captain portal, a mobile scoring console, and an admin control center. MongoDB is the single source of truth — nothing about the tournament is hardcoded in the UI.
+Tournament management and live scoring for the **Volleyball Tournament**. One codebase, four purpose-built experiences: a public spectator site, a captain portal, a mobile scoring console, and an admin control center. MongoDB is the single source of truth — nothing about the tournament is hardcoded in the UI.
 
 ## Stack
 

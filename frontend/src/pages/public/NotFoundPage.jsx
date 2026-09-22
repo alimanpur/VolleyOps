@@ -13,7 +13,7 @@ export default function NotFoundPage() {
           <Link to="/" className="flex items-baseline gap-2">
             <span className="font-display text-2xl tracking-tight text-ink">VolleyOps</span>
             <span className="hidden text-xs font-semibold uppercase tracking-wider text-green sm:inline">
-              IPS Academy
+              Volleyball Tournament
             </span>
           </Link>
         </div>
